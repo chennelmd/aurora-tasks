@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --ring: 56 189 248; }
+
+* { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.4) transparent; }
+*::-webkit-scrollbar { height: 8px; width: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.4); border-radius: 999px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+html, body { color-scheme: dark; }
