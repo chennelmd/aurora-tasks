@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -579,7 +580,25 @@ function TagAndPriorityFilters({ allTags, tagFilter, setTagFilter, priorityFilte
     </div>
   );
 }
+function DragPortal({ children, isDragging }) {
+  const portalRef = React.useRef(null);
 
+  React.useEffect(() => {
+    let el = document.getElementById("drag-portal");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "drag-portal";
+      el.style.position = "relative";
+      el.style.zIndex = 9999; // keep above everything
+      document.body.appendChild(el);
+    }
+    portalRef.current = el;
+  }, []);
+
+  return isDragging && portalRef.current
+    ? ReactDOM.createPortal(children, portalRef.current)
+    : children;
+}
 function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
   const columnMeta = {
     today:   { title: "Today",     hint: "Focus",   color: "from-sky-500/30 to-sky-600/30" },
@@ -614,22 +633,24 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                       .map((t, idx) => (
                         <Draggable key={t.id} draggableId={t.id} index={idx}>
                           {(provided, snapshot) => (
-                            <motion.div
-                              initial={{ opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.98 }}
-                              transition={{ duration: 0.15 }}
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 9999 : 'auto' }}
-                              className={classNames(
-                                "group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg",
-                                snapshot.isDragging && "ring-2 ring-sky-400/60 z-50"
-                              )}
-                            >
-                              <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
-                            </motion.div>
+                            <DragPortal isDragging={snapshot.isDragging}>
+                              <motion.div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 9999 : "auto" }}
+                                className={classNames(
+                                  "group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg",
+                                  snapshot.isDragging && "ring-2 ring-sky-400/60 z-50"
+                                )}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.98 }}
+                                transition={{ duration: 0.15 }}
+                              >
+                                <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
+                              </motion.div>
+                            </DragPortal>
                           )}
                         </Draggable>
                       ))}
