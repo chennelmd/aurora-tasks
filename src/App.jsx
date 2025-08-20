@@ -62,7 +62,7 @@ export default function App() {
 
   // App State
   const [tasks, setTasks] = useState(SAMPLE_TASKS);
-  const [prefs, setPrefs] = useState({ theme: "auto", view: "", showCompleted: true, sound: true });
+  const [prefs, setPrefs] = useState({ theme: "auto", view: "kanban", showCompleted: true, sound: true });
 
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
@@ -384,7 +384,7 @@ export default function App() {
 
       <header className="sticky top-0 z-40 backdrop-blur bg-black/10 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Square className="w-6 h-6 text-sky-300" />
+          <KanbanSquare className="w-6 h-6 text-sky-300" />
           <h1 className="text-xl font-semibold tracking-tight">Aurora Tasks</h1>
           <span className="ml-1 text-xs text-sky-200/70">daily flow</span>
 
@@ -443,8 +443,8 @@ export default function App() {
           />
         </div>
 
-        {prefs.view === "" && (
-          <
+        {prefs.view === "kanban" && (
+          <Kanban
             columns={columns}
             prefs={prefs}
             onDragEnd={onDragEnd}
@@ -453,7 +453,6 @@ export default function App() {
             onDelete={(id) => deleteTask(id)}
           />
         )}
-
         {prefs.view === "calendar" && (
           <CalendarView
             calMonth={calMonth}
