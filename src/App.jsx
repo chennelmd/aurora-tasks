@@ -41,6 +41,49 @@ const formatDateShort = (dateish) => {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
+const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate(); // m is 0–11
+
+// Get the Nth weekday of a month (weekday: 0=Sun..6=Sat; ordinal: 1..5 or -1 for last)
+function nthWeekdayOfMonth(y, m, weekday, ordinal) {
+  if (ordinal === -1) {
+    // last weekday of month
+    const last = new Date(y, m + 1, 0);
+    const diff = (last.getDay() - weekday + 7) % 7;
+    last.setDate(last.getDate() - diff);
+    return last;
+  } else {
+    const first = new Date(y, m, 1);
+    const diff = (weekday - first.getDay() + 7) % 7;
+    const day = 1 + diff + (ordinal - 1) * 7;
+    const dim = daysInMonth(y, m);
+    // If 5th occurrence doesn’t exist this month, return null to let caller advance months
+    if (day > dim) return null;
+    return new Date(y, m, day);
+  }
+}
+
+// Advance to the next “Nth weekday of the month”, stepping by `monthsStep` months.
+// If the target ordinal doesn’t exist in that month (e.g., 5th Monday), skip forward
+// by `monthsStep` until a valid month is found.
+function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
+  let y = base.getFullYear();
+  let m = base.getMonth();
+
+  // Always move forward by at least one step (we advance after completion)
+  m += monthsStep;
+  y += Math.floor(m / 12);
+  m = ((m % 12) + 12) % 12;
+
+  let candidate = nthWeekdayOfMonth(y, m, weekday, ordinal);
+  while (!candidate) {
+    m += monthsStep;
+    y += Math.floor(m / 12);
+    m = ((m % 12) + 12) % 12;
+    candidate = nthWeekdayOfMonth(y, m, weekday, ordinal);
+  }
+  return candidate;
+}
+
 // ---------- Auto-placement helpers (Option A) ----------
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -253,17 +296,36 @@ export default function App() {
       toast.success("Nice! Completed");
     }
   }
-  function computeNextDue(task) {
-    const base = parseTimeToDate(task.nextDue || todayISO(), task.time || "09:00");
-    switch (task.repeat) {
-      case "daily": return addDays(base, 1);
-      case "weekly": return addDays(base, 7);
-      case "monthly": return addMonths(base, 1);
-      case "weekdays": return nextWeekday(base);
-      case "custom": return addDays(base, Number(task.repeatIntervalDays || 1));
-      default: return base;
+  
+function computeNextDue(task) {
+  const base = parseTimeToDate(task.nextDue || todayISO(), task.time || "09:00");
+  const n = Number(task.repeatIntervalDays || 1);
+
+  switch (task.repeat) {
+    case "daily":
+      return addDays(base, n);                       // every n days
+    case "weekly":
+      return addDays(base, 7 * n);                   // every n weeks
+    case "monthly":
+      return addMonths(base, n);                     // every n months (same day-of-month)
+    case "weekdays": {
+      // every n workdays (Mon–Fri)
+      let next = base;
+      for (let i = 0; i < n; i++) next = nextWeekday(next);
+      return next;
     }
+    case "monthly-nth": {
+      // every n months on the Nth <weekday> (e.g., 2nd Monday)
+      const weekday = Number(task.repeatWeekday ?? 1); // default Monday (1)
+      const ordinal = Number(task.repeatNth ?? 1);     // default 1st
+      return nextMonthlyNth(base, n, weekday, ordinal);
+    }
+    case "custom":
+      return addDays(base, n);                       // every n days
+    default:
+      return base;
   }
+}
 
   // ---------- DnD: manual override on drag ----------
   async function onDragEnd(result) {
@@ -849,25 +911,27 @@ function TaskModal({ open, onClose, task, onSave }) {
     }
   }, [task, open]);
 
-  function emptyTask() {
-    return {
-      id: uid(),
-      title: "",
-      notes: "",
-      status: "today",
-      statusMode: "auto",     // NEW: default new tasks use Auto placement
-      priority: "medium",
-      tags: [],
-      nextDue: todayISO(),
-      time: "",
-      remindBefore: [],
-      repeat: "none",
-      repeatIntervalDays: 1,
-      createdAt: new Date().toISOString(),
-      lastCompletedAt: null,
-      checklist: [],
-    };
-  }
+function emptyTask() {
+  return {
+    id: uid(),
+    title: "",
+    notes: "",
+    status: "today",
+    statusMode: "auto",
+    priority: "medium",
+    tags: [],
+    nextDue: todayISO(),
+    time: "",
+    remindBefore: [],
+    repeat: "none",
+    repeatIntervalDays: 1,
+    repeatNth: 1,          // 1..4 or -1 for "last"
+    repeatWeekday: 1,      // 0=Sun..6=Sat (default Monday=1)
+    createdAt: new Date().toISOString(),
+    lastCompletedAt: null,
+    checklist: [],
+  };
+}
 
   const isAuto = (data.statusMode || "auto") === "auto";
   const autoPreview = computeAutoStatus(data);
@@ -1028,20 +1092,65 @@ function TaskModal({ open, onClose, task, onSave }) {
                   <option value="weekdays">Weekdays</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
+                  <option value="monthly-nth">Monthly (nth weekday)</option>
                   <option value="custom">Custom (days)</option>
                 </select>
+            
+                {/* Interval is always enabled; meaning depends on mode:
+                   daily -> days, weekly -> weeks, monthly/monthly-nth -> months, custom -> days */}
                 <input
                   type="number"
                   min={1}
                   value={data.repeatIntervalDays}
-                  onChange={(e) => setData({ ...data, repeatIntervalDays: clamp(Number(e.target.value || 1), 1, 365) })}
-                  disabled={data.repeat !== "custom"}
-                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
+                  onChange={(e) =>
+                    setData({
+                      ...data,
+                      repeatIntervalDays: clamp(Number(e.target.value || 1), 1, 365),
+                    })
+                  }
+                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                  placeholder="Every…"
                 />
               </div>
-              <p className="text-xs text-slate-400 mt-1">Complete the task to auto-advance the next due date.</p>
-            </div>
+            
+              {/* Nth weekday pickers */}
+              {data.repeat === "monthly-nth" && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <select
+                    value={data.repeatNth ?? 1}
+                    onChange={(e) => setData({ ...data, repeatNth: Number(e.target.value) })}
+                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                    title="Which occurrence in the month"
+                  >
+                    <option value={1}>1st</option>
+                    <option value={2}>2nd</option>
+                    <option value={3}>3rd</option>
+                    <option value={4}>4th</option>
+                    <option value={-1}>Last</option>
+                  </select>
+            
+                  <select
+                    value={data.repeatWeekday ?? 1}
+                    onChange={(e) => setData({ ...data, repeatWeekday: Number(e.target.value) })}
+                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                    title="Pick a weekday"
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={0}>Sunday</option>
+                  </select>
+                </div>
+              )}
 
+  <p className="text-xs text-slate-400 mt-1">
+    Tip: “Every” controls units by mode — Daily=days, Weekly=weeks, Monthly/Monthly (nth)=months, Custom=days.
+    Complete the task to auto-advance the next due date.
+  </p>
+</div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="text-xs text-slate-300 mb-2">Quick actions</div>
               <div className="flex flex-wrap gap-2">
