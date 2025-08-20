@@ -1,7 +1,7 @@
-
+// src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -19,11 +19,12 @@ import {
   collection, doc, onSnapshot, setDoc, deleteDoc, getDocs, getDoc
 } from "firebase/firestore";
 
+// ---------------------- utils ----------------------
 const uid = () => Math.random().toString(36).slice(2, 9);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-const addDays   = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
 const isSameDay = (a, b) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -47,19 +48,19 @@ const SAMPLE_TASKS = [
   { id: uid(), title: "Deep clean kitchen", notes: "Stove, sink, counters, floor", status: "backlog", priority: "medium", tags: ["home"], nextDue: todayISO(), time: "", remindBefore: [], repeat: "weekly", repeatIntervalDays: 0, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
 ];
 
+// ---------------------- App ----------------------
 export default function App() {
-  // ---------- Auth ----------
+  // Auth
   const [user, setUser] = useState(null);
   useEffect(() => {
     signInAnon().catch(console.error);
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
-
   const tasksCol = user ? collection(db, "users", user.uid, "tasks") : null;
   const prefsDoc = user ? doc(db, "users", user.uid, "meta", "prefs") : null;
 
-  // ---------- State ----------
+  // App State
   const [tasks, setTasks] = useState(SAMPLE_TASKS);
   const [prefs, setPrefs] = useState({ theme: "auto", view: "kanban", showCompleted: true, sound: true });
 
@@ -68,6 +69,8 @@ export default function App() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+
+  // Email/Password Auth (single declaration)
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [authMode, setAuthMode] = useState("signin"); // 'signin' | 'signup' | 'reset'
   const [authEmail, setAuthEmail] = useState("");
@@ -87,7 +90,7 @@ export default function App() {
     apply(prefs.theme);
   }, [prefs.theme]);
 
-  // ---------- Firestore: listeners & seed ----------
+  // Firestore listeners & seed
   useEffect(() => {
     if (!user || !tasksCol || !prefsDoc) return;
 
@@ -115,11 +118,10 @@ export default function App() {
     return () => clearTimeout(t);
   }, [prefs, user]);
 
-  // ---------- Reminders ----------
+  // Reminders
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
   }, []);
-
   useEffect(() => {
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
@@ -165,9 +167,8 @@ export default function App() {
     timeoutsRef.current.push(t);
   }
 
-  // ---------- Filters ----------
+  // Filters
   const allTags = useMemo(() => Array.from(new Set(tasks.flatMap((t) => t.tags || []))).sort(), [tasks]);
-
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       const q = query.toLowerCase();
@@ -188,7 +189,7 @@ export default function App() {
     [filteredTasks]
   );
 
-  // ---------- Writes ----------
+  // Writes
   async function upsertTask(task) {
     if (user && tasksCol) {
       await setDoc(doc(tasksCol, task.id), task, { merge: true });
@@ -224,24 +225,16 @@ export default function App() {
     }
   }
 
-  function onDragEnd(result) {
+  // ---- DnD: rely on Firestore only (no local setState) ----
+  async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
-    if (!destination) return;
-  
-    // if dropped back to the same column, do nothing
-    if (source.droppableId === destination.droppableId) return;
-  
-    setTasks((prev) => {
-      const next = prev.map((t) =>
-        t.id === draggableId ? { ...t, status: destination.droppableId } : t
-      );
-      const moved = next.find((t) => t.id === draggableId);
-      if (moved) upsertTask(moved); // update Firestore with the new status
-      return next;
-    });
+    if (!destination || source.droppableId === destination.droppableId) return;
+    const current = tasks.find((t) => t.id === draggableId);
+    if (!current) return;
+    await upsertTask({ ...current, status: destination.droppableId });
   }
 
-  // ---------- Export / Import JSON ----------
+  // Export / Import JSON
   function exportData() {
     const payload = { tasks, prefs, exportedAt: new Date().toISOString(), version: 1 };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -272,7 +265,7 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // ---------- Google Sign-in / Link / Sign-out ----------
+  // Google sign-in / link / sign-out
   const provider = new GoogleAuthProvider();
   async function signInWithGoogle() {
     try {
@@ -303,6 +296,7 @@ export default function App() {
     }
   }
 
+  // Email/Password auth
   async function handleEmailSubmit(e) {
     e.preventDefault();
     const email = authEmail.trim();
@@ -315,7 +309,7 @@ export default function App() {
       if (authMode === "signup") {
         if (current && current.isAnonymous) {
           const cred = EmailAuthProvider.credential(email, password);
-          await linkWithCredential(current, cred);
+          await linkWithCredential(current, cred); // keep UID
           toast.success("Account created & linked");
         } else {
           await createUserWithEmailAndPassword(auth, email, password);
@@ -353,7 +347,6 @@ export default function App() {
       toast.error(err.message || "Auth failed");
     }
   }
-
   async function migrateUserData(oldUid, newUid) {
     const oldTasksCol = collection(db, "users", oldUid, "tasks");
     const oldSnap = await getDocs(oldTasksCol);
@@ -366,14 +359,13 @@ export default function App() {
     const oldPrefs = await getDoc(oldPrefsRef);
     if (oldPrefs.exists()) await setDoc(newPrefsRef, oldPrefs.data(), { merge: true });
   }
-
   async function signOut() {
     await fbSignOut(auth);
     await signInAnon().catch(() => {});
     toast("Signed out");
   }
 
-  // ---------- Calendar ----------
+  // Calendar
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
   const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7));
@@ -525,6 +517,28 @@ export default function App() {
   );
 }
 
+// ---------- Portal for dragged cards ----------
+function DragPortal({ children, isDragging }) {
+  const portalRef = React.useRef(null);
+
+  React.useEffect(() => {
+    let el = document.getElementById("drag-portal");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "drag-portal";
+      el.style.position = "relative";
+      el.style.zIndex = 10000;
+      document.body.appendChild(el);
+    }
+    portalRef.current = el;
+  }, []);
+
+  return isDragging && portalRef.current
+    ? ReactDOM.createPortal(children, portalRef.current)
+    : children;
+}
+
+// ---------- UI pieces ----------
 function ViewToggle({ value, onChange }) {
   const options = [
     { key: "kanban", label: "Kanban", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -575,25 +589,7 @@ function TagAndPriorityFilters({ allTags, tagFilter, setTagFilter, priorityFilte
     </div>
   );
 }
-function DragPortal({ children, isDragging }) {
-  const portalRef = React.useRef(null);
 
-  React.useEffect(() => {
-    let el = document.getElementById("drag-portal");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "drag-portal";
-      el.style.position = "relative";
-      el.style.zIndex = 9999; // keep above everything
-      document.body.appendChild(el);
-    }
-    portalRef.current = el;
-  }, []);
-
-  return isDragging && portalRef.current
-    ? ReactDOM.createPortal(children, portalRef.current)
-    : children;
-}
 function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
   const columnMeta = {
     today:   { title: "Today",     hint: "Focus",   color: "from-sky-500/30 to-sky-600/30" },
@@ -622,7 +618,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
             <Droppable droppableId={key}>
               {(provided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] flex flex-col gap-3 overflow-visible">
-                  <AnimatePresence>
+                  <>
                     {columns[key]
                       .filter((t) => key !== "done" || (key === "done" && prefs.showCompleted))
                       .map((t, idx) => (
@@ -633,13 +629,12 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 10000 : 'auto' }}
+                                style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 10000 : "auto" }}
                                 className={snapshot.isDragging ? "relative z-50" : "relative"}
                               >
                                 <motion.div
                                   initial={{ opacity: 0, y: 8 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, scale: 0.98 }}
                                   transition={{ duration: 0.15 }}
                                   className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
                                 >
@@ -650,8 +645,8 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                           )}
                         </Draggable>
                       ))}
-                  </AnimatePresence>
-                  {provided.placeholder}
+                    {provided.placeholder}
+                  </>
                 </div>
               )}
             </Droppable>
@@ -784,7 +779,6 @@ function PriorityDot({ level }) {
   const map = { low: "bg-emerald-400", medium: "bg-amber-400", high: "bg-rose-400" };
   return <span className={classNames("mt-1 w-2.5 h-2.5 rounded-full", map[level] || "bg-slate-300")} />;
 }
-
 function ShieldPill({ icon, text }) {
   return (
     <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
@@ -794,6 +788,7 @@ function ShieldPill({ icon, text }) {
   );
 }
 
+// ---------- Task Modal ----------
 function TaskModal({ open, onClose, task, onSave }) {
   const [data, setData] = useState(() => emptyTask());
 
@@ -842,7 +837,7 @@ function TaskModal({ open, onClose, task, onSave }) {
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
       >
         <div className="flex items-center justify-between mb-3">
@@ -1045,7 +1040,7 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
       >
         <div className="flex items-center justify-between mb-3">
