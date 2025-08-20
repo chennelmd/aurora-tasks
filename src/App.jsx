@@ -227,22 +227,17 @@ export default function App() {
   function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+  
+    // if dropped back to the same column, do nothing
+    if (source.droppableId === destination.droppableId) return;
+  
     setTasks((prev) => {
-      const i = prev.findIndex((t) => t.id === draggableId);
-      if (i === -1) return prev;
-      const moved = { ...prev[i], status: destination.droppableId };
-      const rest = prev.filter((t) => t.id !== draggableId);
-      let beforeIdx = rest.length, seen = 0;
-      for (let j = 0; j < rest.length; j++) {
-        if (rest[j].status === destination.droppableId) {
-          if (seen === destination.index) { beforeIdx = j; break; }
-          seen++;
-        }
-      }
-      const out = [...rest.slice(0, beforeIdx), moved, ...rest.slice(beforeIdx)];
-      upsertTask(moved);
-      return out;
+      const next = prev.map((t) =>
+        t.id === draggableId ? { ...t, status: destination.droppableId } : t
+      );
+      const moved = next.find((t) => t.id === draggableId);
+      if (moved) upsertTask(moved); // update Firestore with the new status
+      return next;
     });
   }
 
