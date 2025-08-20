@@ -631,12 +631,13 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                 style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 10000 : "auto" }}
                                 className={(snapshot.isDragging ? "relative z-50 " : "relative ") + "will-change-transform"}
                               >
-                                <motion.div
-                                  initial={{ opacity: 0, y: 8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: 0.15 }}
-                                  className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
-                                >
+                    <motion.div
+                      initial={false}                 // <- prevents the “wink” on remount
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15 }}
+                      layout={false}                  // <- be explicit: no layout animation on the card
+                      className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
+                    >
                                   <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
                                 </motion.div>
                               </div>
