@@ -607,7 +607,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
 
             <Droppable droppableId={key}>
               {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] flex flex-col gap-3">
+                <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] flex flex-col gap-3 overflow-visible">
                   <AnimatePresence>
                     {columns[key]
                       .filter((t) => key !== "done" || (key === "done" && prefs.showCompleted))
@@ -622,9 +622,10 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
+                              style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 9999 : 'auto' }}
                               className={classNames(
                                 "group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg",
-                                snapshot.isDragging && "ring-2 ring-sky-400/60"
+                                snapshot.isDragging && "ring-2 ring-sky-400/60 z-50"
                               )}
                             >
                               <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
