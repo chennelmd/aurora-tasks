@@ -4,9 +4,9 @@ import ReactDOM from "react-dom";
 import { motion } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import {
-  Bell, Calendar as CalendarIcon, CheckCircle2, Clock, LayoutDashboard, ListChecks,
-  Moon, Plus, Repeat, Search, Sun, Trash2, X, ChevronLeft, ChevronRight, KanbanSquare, Mail
+import { 
+  Bell, Calendar as CalendarIcon, CheckCircle2, Clock, LayoutDashboard, ListChecks, 
+  Moon, Plus, Repeat, Search, Sun, Trash2, X, ChevronLeft, ChevronRight, KanbanSquare, Mail, Palette
 } from "lucide-react";
 
 import { auth, db, signInAnon } from "./firebase";
@@ -40,6 +40,24 @@ const formatDateShort = (dateish) => {
   const d = typeof dateish === "string" ? new Date(dateish) : dateish;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
+// ---- THEME helpers ----
+const defaultTheme = {
+  from: "#0b1220", // bg start
+  via:  "#1b2450", // bg middle
+  to:   "#0ea5e9", // bg end
+  accent: "#38bdf8", // buttons, highlights
+};
+
+function getContrastText(hex) {
+  // simple YIQ contrast
+  let c = (hex || "#000").replace("#", "");
+  if (c.length === 3) c = c.split("").map(x => x + x).join("");
+  const r = parseInt(c.slice(0,2), 16);
+  const g = parseInt(c.slice(2,4), 16);
+  const b = parseInt(c.slice(4,6), 16);
+  const yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 150 ? "#000000" : "#ffffff";
+}
 
 // extra date helpers
 const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate(); // m is 0–11
@@ -138,7 +156,13 @@ export default function App() {
 
   // App State
   const [tasks, setTasks] = useState(SAMPLE_TASKS);
-  const [prefs, setPrefs] = useState({ theme: "auto", view: "kanban", showCompleted: true, sound: true });
+  const [prefs, setPrefs] = useState({
+    theme: "auto",
+    view: "kanban",
+    showCompleted: true,
+    sound: true,
+    themeColors: { ...defaultTheme },
+  });
 
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
@@ -165,7 +189,17 @@ export default function App() {
     };
     apply(prefs.theme);
   }, [prefs.theme]);
-
+// Apply custom theme colors as CSS variables
+useEffect(() => {
+  const c = { ...defaultTheme, ...(prefs.themeColors || {}) };
+  const root = document.documentElement;
+  root.style.setProperty("--bg-from", c.from);
+  root.style.setProperty("--bg-via",  c.via);
+  root.style.setProperty("--bg-to",   c.to);
+  root.style.setProperty("--accent",  c.accent);
+  root.style.setProperty("--accent-text", getContrastText(c.accent));
+}, [prefs.themeColors]);
+ 
   // Firestore listeners & seed
   useEffect(() => {
     if (!user || !tasksCol || !prefsDoc) return;
@@ -491,7 +525,12 @@ export default function App() {
   }, [filteredTasks]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-sky-900 text-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900">
+    <div
+  className="min-h-screen text-slate-100 dark:text-slate-100"
+  style={{
+    background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))",
+      }}
+      >
       <AuroraBackground />
       <audio ref={audioRef} src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA//////////////////////////////8AAABJTE5B" preload="auto" />
       <Toaster richColors position="top-right" />
@@ -518,8 +557,12 @@ export default function App() {
               {prefs.theme === "dark" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
 
-            <button onClick={() => setShowTaskModal(true)} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black shadow-lg shadow-sky-900/30">
-              <Plus className="w-4 h-4" /> New
+            <button
+                onClick={() => setShowThemeModal(true)}
+                className="p-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
+                title="Theme colors"
+                >
+              <Palette className="w-5 h-5" />
             </button>
 
             <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importData(e.target.files[0])} />
@@ -598,14 +641,24 @@ export default function App() {
         )}
       </main>
 
-      <TaskModal
-        open={showTaskModal}
-        onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
-        task={editingTask}
-        onSave={(task) => { upsertTask(task); setShowTaskModal(false); setEditingTask(null); }}
-      />
+      // App component state…
+      const [showTaskModal, setShowTaskModal] = useState(false);
+      const [showThemeModal, setShowThemeModal] = useState(false); // ← add this
+      const [editingTask, setEditingTask] = useState(null);
+      
+      // Email/Password Auth (single declaration)
+      const [showEmailModal, setShowEmailModal] = useState(false);
+      const [authMode, setAuthMode] = useState("signin");
+      const [authEmail, setAuthEmail] = useState("");
+      const [authPass, setAuthPass] = useState("");
 
-      <EmailAuthModal
+      <TaskModal
+          open={showTaskModal}
+          onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
+          task={editingTask}
+          onSave={(task) => { upsertTask(task); setShowTaskModal(false); setEditingTask(null); }}
+        />
+        <EmailAuthModal
         open={showEmailModal}
         mode={authMode}
         setMode={setAuthMode}
@@ -616,6 +669,117 @@ export default function App() {
         onClose={() => setShowEmailModal(false)}
         onSubmit={handleEmailSubmit}
       />
+
+      <ThemeModal
+  open={showThemeModal}
+  onClose={() => setShowThemeModal(false)}
+  colors={prefs.themeColors || defaultTheme}
+  onChange={(next) => setPrefs((p) => ({ ...p, themeColors: { ...p.themeColors, ...next } }))}
+  onPreset={(preset) => setPrefs((p) => ({ ...p, themeColors: preset }))}
+ />
+      
+function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
+  if (!open) return null;
+
+  const presets = [
+    { name: "Aurora",   from: "#0b1220", via: "#1b2450", to: "#0ea5e9", accent: "#38bdf8" },
+    { name: "Sunset",   from: "#140e1a", via: "#5f2239", to: "#ff6b6b", accent: "#ffd166" },
+    { name: "Forest",   from: "#0d1f1a", via: "#134e4a", to: "#10b981", accent: "#34d399" },
+    { name: "Grape",    from: "#1a1026", via: "#3b1d5a", to: "#a78bfa", accent: "#c084fc" },
+    { name: "Mono",     from: "#0f172a", via: "#1f2937", to: "#334155", accent: "#e2e8f0" },
+  ];
+
+  const set = (key) => (e) => onChange({ [key]: e.target.value });
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-lg rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-semibold flex items-center gap-2">
+            <Palette className="w-5 h-5" /> Theme
+          </div>
+          <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-slate-300">Background From</label>
+            <input type="color" value={colors.from} onChange={set("from")}
+                   className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-300">Background Via</label>
+            <input type="color" value={colors.via} onChange={set("via")}
+                   className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-300">Background To</label>
+            <input type="color" value={colors.to} onChange={set("to")}
+                   className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-300">Accent</label>
+            <input type="color" value={colors.accent} onChange={set("accent")}
+                   className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="text-xs text-slate-300 mb-2">Presets</div>
+          <div className="flex flex-wrap gap-2">
+            {presets.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => onPreset(p)}
+                className="rounded-xl border border-white/10 overflow-hidden"
+                title={p.name}
+              >
+                <div className="flex">
+                  <div className="w-10 h-8" style={{ background: p.from }} />
+                  <div className="w-10 h-8" style={{ background: p.via }} />
+                  <div className="w-10 h-8" style={{ background: p.to }} />
+                  <div className="w-10 h-8" style={{ background: p.accent }} />
+                </div>
+                <div className="text-[10px] text-center py-1 px-2">{p.name}</div>
+              </button>
+            ))}
+            <button
+              onClick={() => onPreset(defaultTheme)}
+              className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 p-3">
+          <div className="text-xs text-slate-300 mb-2">Preview</div>
+          <div
+            className="h-20 w-full rounded-lg border border-white/10"
+            style={{ background: `linear-gradient(135deg, ${colors.from}, ${colors.via}, ${colors.to})` }}
+          />
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+               style={{ background: colors.accent, color: getContrastText(colors.accent) }}>
+            Accent button
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
       <footer className="max-w-7xl mx-auto px-4 pb-10 text-xs text-slate-400/80">
         <div className="flex items-center gap-3">
