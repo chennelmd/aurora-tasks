@@ -611,7 +611,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {Object.keys(columnMeta).map((key) => (
-          <motion.div key={key} layout className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3">
+          <motion.div key={key} layout className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 overflow-visible">
             <div className="flex items-center justify-between px-1 pb-2">
               <div>
                 <div className="text-sm text-slate-300">{columnMeta[key].hint}</div>
@@ -634,22 +634,23 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                         <Draggable key={t.id} draggableId={t.id} index={idx}>
                           {(provided, snapshot) => (
                             <DragPortal isDragging={snapshot.isDragging}>
-                              <motion.div
+                              <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 9999 : "auto" }}
-                                className={classNames(
-                                  "group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg",
-                                  snapshot.isDragging && "ring-2 ring-sky-400/60 z-50"
-                                )}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.15 }}
+                                style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 10000 : 'auto' }}
+                                className={snapshot.isDragging ? "relative z-50" : "relative"}
                               >
-                                <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
-                              </motion.div>
+                                <motion.div
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.98 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
+                                >
+                                  <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
+                                </motion.div>
+                              </div>
                             </DragPortal>
                           )}
                         </Draggable>
