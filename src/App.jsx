@@ -41,6 +41,32 @@ const formatDateShort = (dateish) => {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
+// ---------- Auto-placement helpers (Option A) ----------
+const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+function computeAutoStatus(task, now = new Date()) {
+  // Completed tasks remain completed
+  if (task.status === "done") return "done";
+
+  // No due date -> backlog
+  if (!task.nextDue || !isISO(task.nextDue)) return "backlog";
+
+  const due = parseTimeToDate(task.nextDue, task.time || "09:00");
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (due < startOfToday) return "today";     // treat overdue as Today
+  if (due > endOfToday)   return "upcoming";  // future
+  return "today";                              // due today
+}
+
+function effectiveStatus(task) {
+  // Default to auto for backward compatibility if statusMode is missing
+  const mode = task.statusMode || "auto";
+  return mode === "manual" ? (task.status || "today") : computeAutoStatus(task);
+}
+
+// ---------- Sample data ----------
 const SAMPLE_TASKS = [
   { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 0, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
   { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 0, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
@@ -179,12 +205,13 @@ export default function App() {
     });
   }, [tasks, query, tagFilter, priorityFilter]);
 
+  // ---------- COLUMNS: use effectiveStatus() to respect Auto/Manual ----------
   const columns = useMemo(
     () => ({
-      today: filteredTasks.filter((t) => t.status === "today"),
-      upcoming: filteredTasks.filter((t) => t.status === "upcoming"),
-      backlog: filteredTasks.filter((t) => t.status === "backlog"),
-      done: filteredTasks.filter((t) => t.status === "done"),
+      today:    filteredTasks.filter((t) => effectiveStatus(t) === "today"),
+      upcoming: filteredTasks.filter((t) => effectiveStatus(t) === "upcoming"),
+      backlog:  filteredTasks.filter((t) => effectiveStatus(t) === "backlog"),
+      done:     filteredTasks.filter((t) => effectiveStatus(t) === "done"),
     }),
     [filteredTasks]
   );
@@ -202,14 +229,27 @@ export default function App() {
     else setTasks((prev) => prev.filter((t) => t.id !== id));
     toast("Task deleted");
   }
+
+  // ---------- Completion: recurring -> auto; one-off -> manual/done ----------
   async function completeTask(task) {
     if (task.repeat && task.repeat !== "none") {
       const next = computeNextDue(task);
-      const advanced = { ...task, nextDue: next.toISOString().slice(0, 10), lastCompletedAt: new Date().toISOString(), status: "today" };
+      const advanced = {
+        ...task,
+        nextDue: next.toISOString().slice(0, 10),
+        lastCompletedAt: new Date().toISOString(),
+        statusMode: "auto",
+      };
+      advanced.status = computeAutoStatus(advanced);
       await upsertTask(advanced);
       toast.success("Recurring task advanced");
     } else {
-      await upsertTask({ ...task, status: "done", lastCompletedAt: new Date().toISOString() });
+      await upsertTask({
+        ...task,
+        status: "done",
+        statusMode: "manual",
+        lastCompletedAt: new Date().toISOString()
+      });
       toast.success("Nice! Completed");
     }
   }
@@ -225,13 +265,14 @@ export default function App() {
     }
   }
 
-  // ---- DnD: rely on Firestore only (no local setState) ----
+  // ---------- DnD: manual override on drag ----------
   async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
     const current = tasks.find((t) => t.id === draggableId);
     if (!current) return;
-    await upsertTask({ ...current, status: destination.droppableId });
+    await upsertTask({ ...current, status: destination.droppableId, statusMode: "manual" });
+    toast("Manual override enabled for this task");
   }
 
   // Export / Import JSON
@@ -632,10 +673,10 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                 className={(snapshot.isDragging ? "relative z-50 " : "relative ") + "will-change-transform"}
                               >
                     <motion.div
-                      initial={false}                 // <- prevents the “wink” on remount
+                      initial={false}                 // prevents the “wink” on remount
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15 }}
-                      layout={false}                  // <- be explicit: no layout animation on the card
+                      layout={false}                  // explicitly disable layout animation on the card
                       className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
                     >
                                   <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
@@ -788,7 +829,7 @@ function ShieldPill({ icon, text }) {
   );
 }
 
-// ---------- Task Modal ----------
+// ---------- Task Modal (with Auto/Manual toggle + preview) ----------
 function TaskModal({ open, onClose, task, onSave }) {
   const [data, setData] = useState(() => emptyTask());
 
@@ -800,6 +841,8 @@ function TaskModal({ open, onClose, task, onSave }) {
         copy.checklist = (copy.checklist || []).map((c) => c.id === task._toggleChecklistId ? { ...c, done: !c.done } : c);
         delete copy._toggleChecklistId;
       }
+      // Backward-compat default: auto if not set
+      if (!copy.statusMode) copy.statusMode = "auto";
       setData(copy);
     } else {
       setData({ ...emptyTask(), nextDue: todayISO() });
@@ -812,6 +855,7 @@ function TaskModal({ open, onClose, task, onSave }) {
       title: "",
       notes: "",
       status: "today",
+      statusMode: "auto",     // NEW: default new tasks use Auto placement
       priority: "medium",
       tags: [],
       nextDue: todayISO(),
@@ -824,6 +868,10 @@ function TaskModal({ open, onClose, task, onSave }) {
       checklist: [],
     };
   }
+
+  const isAuto = (data.statusMode || "auto") === "auto";
+  const autoPreview = computeAutoStatus(data);
+  const capital = (s) => s ? s[0].toUpperCase() + s.slice(1) : "";
 
   const save = () => {
     if (!data.title.trim()) return toast.error("Please add a title");
@@ -866,13 +914,32 @@ function TaskModal({ open, onClose, task, onSave }) {
               />
             </div>
 
+            {/* Auto/Manual toggle + preview */}
+            <div className="flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
+              <span className="text-xs text-slate-300">Auto place by due date</span>
+              <button
+                onClick={() =>
+                  setData(d => ({ ...d, statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto" }))
+                }
+                className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
+              >
+                {isAuto ? "On" : "Off"}
+              </button>
+            </div>
+            {isAuto && (
+              <div className="text-[11px] -mt-1 text-slate-300/90">
+                Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-300">Status</label>
                 <select
                   value={data.status}
-                  onChange={(e) => setData({ ...data, status: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                  onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" /* selecting status implies manual */ })}
+                  disabled={isAuto}
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
                 >
                   <option value="today">Today</option>
                   <option value="upcoming">Upcoming</option>
@@ -978,9 +1045,13 @@ function TaskModal({ open, onClose, task, onSave }) {
             <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="text-xs text-slate-300 mb-2">Quick actions</div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setData({ ...data, status: "today" })}
+                <button onClick={() => setData({ ...data, statusMode: "auto" })}
                         className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                  Set for today
+                  Use auto placement
+                </button>
+                <button onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
+                        className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                  Pin to Today
                 </button>
                 <button onClick={() => setData({ ...data, time: "09:00" })}
                         className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
@@ -991,6 +1062,11 @@ function TaskModal({ open, onClose, task, onSave }) {
                   Remind 10m
                 </button>
               </div>
+              {isAuto && (
+                <div className="text-[11px] text-slate-400 mt-2">
+                  With Auto on, changing Date/Time updates the target column preview above.
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex items-center gap-2 justify-end">
