@@ -759,7 +759,25 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
     </DragDropContext>
   );
 }
-
+// Nicely format the repeat badge on cards
+const ordMap = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", "-1": "Last" };
+const wkMap  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function formatRepeat(t) {
+  const n = Number(t.repeatIntervalDays || 1);
+  switch (t.repeat) {
+    case "daily":    return n === 1 ? "Daily" : `Every ${n} days`;
+    case "weekdays": return n === 1 ? "Weekdays" : `Every ${n} workdays`;
+    case "weekly":   return n === 1 ? "Weekly" : `Every ${n} weeks`;
+    case "monthly":  return n === 1 ? "Monthly" : `Every ${n} months`;
+    case "monthly-nth": {
+      const ord = ordMap[String(t.repeatNth ?? 1)] || "1st";
+      const wk  = wkMap[Number(t.repeatWeekday ?? 1)] || "Mon";
+      return n === 1 ? `${ord} ${wk}` : `${ord} ${wk} • every ${n} mo`;
+    }
+    case "custom":   return `Every ${n} days`;
+    default:         return "—";
+  }
+}
 function CardContent({ t, onEdit, onComplete, onDelete }) {
   return (
     <>
@@ -774,9 +792,10 @@ function CardContent({ t, onEdit, onComplete, onDelete }) {
             ))}
             {t.repeat !== "none" && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                <Repeat className="w-3 h-3" /> {t.repeat}
+                <Repeat className="w-3 h-3" /> {formatRepeat(t)}
               </span>
             )}
+
             {t.time && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
                 <Clock className="w-3 h-3" /> {t.time}
