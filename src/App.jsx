@@ -62,7 +62,7 @@ export default function App() {
 
   // App State
   const [tasks, setTasks] = useState(SAMPLE_TASKS);
-  const [prefs, setPrefs] = useState({ theme: "auto", view: "kanban", showCompleted: true, sound: true });
+  const [prefs, setPrefs] = useState({ theme: "auto", view: "", showCompleted: true, sound: true });
 
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
@@ -384,7 +384,7 @@ export default function App() {
 
       <header className="sticky top-0 z-40 backdrop-blur bg-black/10 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <KanbanSquare className="w-6 h-6 text-sky-300" />
+          <Square className="w-6 h-6 text-sky-300" />
           <h1 className="text-xl font-semibold tracking-tight">Aurora Tasks</h1>
           <span className="ml-1 text-xs text-sky-200/70">daily flow</span>
 
@@ -443,8 +443,8 @@ export default function App() {
           />
         </div>
 
-        {prefs.view === "kanban" && (
-          <Kanban
+        {prefs.view === "" && (
+          <
             columns={columns}
             prefs={prefs}
             onDragEnd={onDragEnd}
@@ -602,7 +602,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {Object.keys(columnMeta).map((key) => (
-          <motion.div key={key} layout className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 overflow-visible">
+          <div key={key} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 overflow-visible">
             <div className="flex items-center justify-between px-1 pb-2">
               <div>
                 <div className="text-sm text-slate-300">{columnMeta[key].hint}</div>
@@ -617,7 +617,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
 
             <Droppable droppableId={key}>
               {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] flex flex-col gap-3 overflow-visible">
+                <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[260px] flex flex-col gap-3 overflow-visible">
                   <>
                     {columns[key]
                       .filter((t) => key !== "done" || (key === "done" && prefs.showCompleted))
@@ -630,7 +630,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                                 style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 10000 : "auto" }}
-                                className={snapshot.isDragging ? "relative z-50" : "relative"}
+                                className={(snapshot.isDragging ? "relative z-50 " : "relative ") + "will-change-transform"}
                               >
                                 <motion.div
                                   initial={{ opacity: 0, y: 8 }}
@@ -650,7 +650,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                 </div>
               )}
             </Droppable>
-          </motion.div>
+          </div>
         ))}
       </div>
     </DragDropContext>
