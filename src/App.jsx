@@ -1020,55 +1020,56 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   // Build 6 week starts from the 42-day grid
   const weeks = useMemo(() => Array.from({ length: 6 }, (_, i) => daysArray[i * 7]), [daysArray]);
 
-  // For each week, compute bar segments and stack into lanes
+// For each week, compute bar segments and stack into lanes
     function computeWeekLanes(weekStart) {
       const weekStartDate = new Date(weekStart);
-      const weekEndDate = addDays(weekStartDate, 6);
+      const weekEndDate   = addDays(weekStartDate, 6);
     
-      // ✅ filter tasks that touch this week
+      // filter tasks that touch this week
       const overlapping = tasks.filter((t) => {
         if (!t.nextDue) return false;
-        const s = fromISO(t.nextDue);
-        const e = fromISO(t.endDate || t.nextDue);
+        const s = fromISO(t.nextDue);                 // noon
+        const e = fromISO(t.endDate || t.nextDue);    // noon
         return e >= weekStartDate && s <= weekEndDate;
       });
     
       const segs = overlapping.map((t) => {
         const start = fromISO(t.nextDue);              // noon
         const end   = fromISO(t.endDate || t.nextDue); // noon
+    
+        // clamp to this week, then normalize to date-noon for accurate day math
         const rawStart = start < weekStartDate ? weekStartDate : start;
         const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
-        const segStart = fromISO(toISO(rawStart));     // clamp to date-noon
+        const segStart = fromISO(toISO(rawStart));
         const segEnd   = fromISO(toISO(rawEnd));
-        const colStart = monIdx(segStart);
+    
+        const colStart = (segStart.getDay() + 6) % 7;  // Monday index
         const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
-        const span = Math.min(7 - colStart, days + 1);
+        const span = Math.min(7 - colStart, days + 1); // inclusive, no spill to next day
+    
         const isStart = toISO(segStart) === toISO(start);
         const isEnd   = toISO(segEnd)   === toISO(end);
         return { task: t, colStart, span, isStart, isEnd };
       });
     
-      // …(rest unchanged)
-    }
-    // Sort: earlier first, then longer span
-    segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
-
-    // Greedy lane assignment (avoid overlaps)
-    const lanes = [];
-    for (const seg of segs) {
-      let placed = false;
-      for (const lane of lanes) {
-        if (!lane.some((s) => !(seg.colStart + seg.span - 1 < s.colStart || s.colStart + s.span - 1 < seg.colStart))) {
-          lane.push(seg);
-          placed = true;
-          break;
+      // Sort: earlier first, then longer span
+      segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
+    
+      // Greedy lane assignment (avoid overlaps)
+      const lanes = [];
+      for (const seg of segs) {
+        let placed = false;
+        for (const lane of lanes) {
+          const overlaps = lane.some((s) => !(
+            seg.colStart + seg.span - 1 < s.colStart ||
+            s.colStart + s.span - 1 < seg.colStart
+          ));
+          if (!overlaps) { lane.push(seg); placed = true; break; }
         }
+        if (!placed) lanes.push([seg]);
       }
-      if (!placed) lanes.push([seg]);
+      return lanes;
     }
-    return lanes;
-  }
-
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
       <div className="flex items-center gap-2 mb-3">
