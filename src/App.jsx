@@ -1021,33 +1021,35 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   const weeks = useMemo(() => Array.from({ length: 6 }, (_, i) => daysArray[i * 7]), [daysArray]);
 
   // For each week, compute bar segments and stack into lanes
-  function computeWeekLanes(weekStart) {
-    const weekStartDate = new Date(weekStart);
-    const weekEndDate = addDays(weekStartDate, 6);
-
-    const overlapping = tasks.filter(/* ... */);
-
-    const segs = overlapping.map((t) => {
-      const start = fromISO(t.nextDue);                 // noon
-      const end   = fromISO(t.endDate || t.nextDue);    // noon
+    function computeWeekLanes(weekStart) {
+      const weekStartDate = new Date(weekStart);
+      const weekEndDate = addDays(weekStartDate, 6);
     
-      // clamp to this week, then normalize both ends to NOON so math is day-accurate
-      const rawStart = start < weekStartDate ? weekStartDate : start;
-      const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
-      const segStart = fromISO(toISO(rawStart)); // -> noon of that day
-      const segEnd   = fromISO(toISO(rawEnd));   // -> noon of that day
+      // ✅ filter tasks that touch this week
+      const overlapping = tasks.filter((t) => {
+        if (!t.nextDue) return false;
+        const s = fromISO(t.nextDue);
+        const e = fromISO(t.endDate || t.nextDue);
+        return e >= weekStartDate && s <= weekEndDate;
+      });
     
-      const colStart = monIdx(segStart);
-      const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
-      const span = Math.min(7 - colStart, days + 1);    // inclusive, no spill to next day
+      const segs = overlapping.map((t) => {
+        const start = fromISO(t.nextDue);              // noon
+        const end   = fromISO(t.endDate || t.nextDue); // noon
+        const rawStart = start < weekStartDate ? weekStartDate : start;
+        const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
+        const segStart = fromISO(toISO(rawStart));     // clamp to date-noon
+        const segEnd   = fromISO(toISO(rawEnd));
+        const colStart = monIdx(segStart);
+        const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
+        const span = Math.min(7 - colStart, days + 1);
+        const isStart = toISO(segStart) === toISO(start);
+        const isEnd   = toISO(segEnd)   === toISO(end);
+        return { task: t, colStart, span, isStart, isEnd };
+      });
     
-      // compare by date-only
-      const isStart = toISO(segStart) === toISO(start);
-      const isEnd   = toISO(segEnd)   === toISO(end);
-    
-      return { task: t, colStart, span, isStart, isEnd };
-    });
-
+      // …(rest unchanged)
+    }
     // Sort: earlier first, then longer span
     segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
 
