@@ -1025,23 +1025,26 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
     const weekStartDate = new Date(weekStart);
     const weekEndDate = addDays(weekStartDate, 6);
 
-    const overlapping = tasks.filter((t) => {
-      if (!t.nextDue) return false;
-      const start = fromISO(t.nextDue);
-      const end = fromISO(t.endDate || t.nextDue);
-      return end >= weekStartDate && start <= weekEndDate;
-    });
+    const overlapping = tasks.filter(/* ... */);
 
-    // Create segments clamped to this week
     const segs = overlapping.map((t) => {
-      const start = fromISO(t.nextDue);
-      const end = fromISO(t.endDate || t.nextDue);
-      const segStart = start < weekStartDate ? weekStartDate : start;
-      const segEnd = end > weekEndDate ? weekEndDate : end;
+      const start = fromISO(t.nextDue);                 // noon
+      const end   = fromISO(t.endDate || t.nextDue);    // noon
+    
+      // clamp to this week, then normalize both ends to NOON so math is day-accurate
+      const rawStart = start < weekStartDate ? weekStartDate : start;
+      const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
+      const segStart = fromISO(toISO(rawStart)); // -> noon of that day
+      const segEnd   = fromISO(toISO(rawEnd));   // -> noon of that day
+    
       const colStart = monIdx(segStart);
-      const span = Math.max(1, Math.min(7 - colStart, Math.round((segEnd - segStart) / 86400000) + 1));
-      const isStart = segStart.getTime() === start.getTime();
-      const isEnd = segEnd.getTime() === end.getTime();
+      const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
+      const span = Math.min(7 - colStart, days + 1);    // inclusive, no spill to next day
+    
+      // compare by date-only
+      const isStart = toISO(segStart) === toISO(start);
+      const isEnd   = toISO(segEnd)   === toISO(end);
+    
       return { task: t, colStart, span, isStart, isEnd };
     });
 
