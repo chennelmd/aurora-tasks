@@ -79,6 +79,24 @@ const parseTimeToDate = (iso, hhmm) => {
   if (hhmm && hhmm.includes(":")) [h, min] = hhmm.split(":").map(Number);
   return new Date(y, m - 1, d, h, min, 0, 0);
 };
+
+// Build a Date from nextDue + time (defaults to end of day so timed tasks come first)
+function taskDueDate(t) {
+  if (!t.nextDue) return null;
+  const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
+  return parseTimeToDate(t.nextDue, hhmm);
+}
+
+// Sort by due date/time ascending; undated last; fallback to createdAt
+function sortByDue(a, b) {
+  const da = taskDueDate(a);
+  const db = taskDueDate(b);
+  if (da && db) return da - db;
+  if (da) return -1;
+  if (db) return 1;
+  return (a.createdAt || "").localeCompare(b.createdAt || "");
+}
+
 const formatDateShort = (dateish) => {
   const d = typeof dateish === "string" ? new Date(dateish) : dateish;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -155,24 +173,19 @@ function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 function computeAutoStatus(task, now = new Date()) {
-  if (task.status === "done") return "done";
+  if (task.status === "done") return "done";                // keep completed in Done
   if (!task.nextDue || !isISO(task.nextDue)) return "backlog";
 
   const due = parseTimeToDate(task.nextDue, task.time || "09:00");
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+  const endOfToday   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const endOfUpcoming = new Date(endOfToday);
+  endOfUpcoming.setDate(endOfUpcoming.getDate() + 7);       // 7-day window
 
-  if (due < startOfToday) return "today"; // overdue -> Today
-  if (due > endOfToday) return "upcoming";
-  return "today";
+  if (due < startOfToday) return "today";                   // overdue → Today
+  if (due <= endOfToday) return "today";                    // due today
+  if (due <= endOfUpcoming) return "upcoming";              // tomorrow..+7 days
+  return "backlog";                                         // all other future
 }
 
 function effectiveStatus(task) {
@@ -438,15 +451,18 @@ export default function App() {
   }, [tasks, query, tagFilter, priorityFilter]);
 
   // ---------- Columns with Auto/Manual ----------
-  const columns = useMemo(
-    () => ({
-      today: filteredTasks.filter((t) => effectiveStatus(t) === "today"),
-      upcoming: filteredTasks.filter((t) => effectiveStatus(t) === "upcoming"),
-      backlog: filteredTasks.filter((t) => effectiveStatus(t) === "backlog"),
-      done: filteredTasks.filter((t) => effectiveStatus(t) === "done"),
-    }),
-    [filteredTasks]
-  );
+const columns = useMemo(() => {
+  const bucket = { today: [], upcoming: [], backlog: [], done: [] };
+  for (const t of filteredTasks) {
+    const s = effectiveStatus(t);
+    (bucket[s] ||= []).push(t);
+  }
+  bucket.today.sort(sortByDue);
+  bucket.upcoming.sort(sortByDue);
+  bucket.backlog.sort(sortByDue);
+  bucket.done.sort(sortByDue);
+  return bucket;
+}, [filteredTasks]);
 
   // Writes
   async function upsertTask(task) {
