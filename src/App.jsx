@@ -55,10 +55,10 @@ const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
-const isSameDay = (a, b) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const nextWeekday = (d) => { const x = addDays(d, 1); while (x.getDay() === 0 || x.getDay() === 6) x.setDate(x.getDate() + 1); return x; };
 const classNames = (...xs) => xs.filter(Boolean).join(" ");
+
 const parseTimeToDate = (iso, hhmm) => {
   const [y, m, d] = iso.split("-").map(Number);
   let [h, min] = [9, 0];
@@ -66,14 +66,12 @@ const parseTimeToDate = (iso, hhmm) => {
   return new Date(y, m - 1, d, h, min, 0, 0);
 };
 
-// ---- sorting helpers (place after parseTimeToDate) ----
-// Build a Date from nextDue + time (defaults to end of day so timed tasks come first)
+// ---- sorting helpers ----
 function taskDueDate(t) {
   if (!t.nextDue) return null;
   const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
   return parseTimeToDate(t.nextDue, hhmm);
 }
-// Sort by due date/time ascending; undated last; fallback to createdAt
 function sortByDue(a, b) {
   const da = taskDueDate(a);
   const db = taskDueDate(b);
@@ -90,10 +88,10 @@ const formatDateShort = (dateish) => {
 
 // ---- THEME helpers ----
 const defaultTheme = {
-  from: "#0b1220",    // background gradient start
-  via:  "#1b2450",    // background gradient middle
-  to:   "#0ea5e9",    // background gradient end
-  accent: "#38bdf8",  // accent for key buttons
+  from: "#0b1220",
+  via:  "#1b2450",
+  to:   "#0ea5e9",
+  accent: "#38bdf8",
 };
 function getContrastText(hex) {
   let c = (hex || "#000").replace("#", "");
@@ -105,16 +103,14 @@ function getContrastText(hex) {
   return yiq >= 150 ? "#000000" : "#ffffff";
 }
 
-// extra date helpers
-const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate(); // m is 0–11
-// Returns the next date on or after `dateish` that falls on `weekday` (0=Sun..6=Sat)
+// ---- extra date helpers (nth weekday etc.) ----
+const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 const nextOnOrAfterWeekday = (dateish, weekday) => {
   const d = typeof dateish === "string" ? new Date(dateish) : new Date(dateish.valueOf());
   const diff = (weekday - d.getDay() + 7) % 7;
   d.setDate(d.getDate() + diff);
   return d;
 };
-// Get the Nth weekday of a month (weekday: 0=Sun..6=Sat; ordinal: 1..4 or -1 for last)
 function nthWeekdayOfMonth(y, m, weekday, ordinal) {
   if (ordinal === -1) {
     const last = new Date(y, m + 1, 0);
@@ -130,7 +126,6 @@ function nthWeekdayOfMonth(y, m, weekday, ordinal) {
     return new Date(y, m, day);
   }
 }
-// Advance to the next “Nth weekday of the month”, stepping by `monthsStep` months.
 function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
   let y = base.getFullYear();
   let m = base.getMonth();
@@ -147,22 +142,65 @@ function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
   return candidate;
 }
 
+// ---- range helpers for multi-day tasks ----
+const toISO = (d) => d.toISOString().slice(0, 10);
+const isMultiDay = (t) => !!t.nextDue && !!t.endDate && t.endDate !== t.nextDue;
+function eachDateInRange(startISO, endISO) {
+  if (!startISO) return [];
+  const start = new Date(startISO);
+  const end = new Date(endISO || startISO);
+  const days = [];
+  const d = new Date(start);
+  while (d <= end) {
+    days.push(toISO(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+function daysBetweenInclusive(startISO, endISO) {
+  if (!startISO) return 0;
+  const s = new Date(startISO);
+  const e = new Date(endISO || startISO);
+  return Math.max(0, Math.round((e - s) / (24 * 3600 * 1000)));
+}
+function formatRangeShort(startISO, endISO) {
+  if (!startISO) return "—";
+  const s = new Date(startISO);
+  const e = new Date(endISO || startISO);
+  const sameDay = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
+  if (sameDay) return s.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
+  const sStr = sameMonth ? String(s.getDate()) : s.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const eStr = e.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${sStr}–${eStr}`;
+}
+
 // ---------- Auto-placement helpers ----------
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
 function computeAutoStatus(task, now = new Date()) {
   if (task.status === "done") return "done";
   if (!task.nextDue || !isISO(task.nextDue)) return "backlog";
 
-  const due = parseTimeToDate(task.nextDue, task.time || "09:00");
+  const start = parseTimeToDate(task.nextDue, task.time || "09:00");
+  const endISO = task.endDate && isISO(task.endDate) ? task.endDate : task.nextDue;
+  const end = parseTimeToDate(endISO, "23:59"); // close of day
+
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfToday   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const endOfUpcoming = new Date(endOfToday);
-  endOfUpcoming.setDate(endOfUpcoming.getDate() + 7); // 7-day window after today
+  const endOfUpcoming = new Date(endOfToday); endOfUpcoming.setDate(endOfUpcoming.getDate() + 7);
 
-  if (due < startOfToday) return "today";     // overdue
-  if (due <= endOfToday)   return "today";     // due today
-  if (due <= endOfUpcoming) return "upcoming"; // next 7 days
-  return "backlog";                             // farther future or undated
+  // Entire range ended before today → treat as overdue (Today)
+  if (end < startOfToday) return "today";
+
+  // Any overlap with today → Today
+  if (start <= endOfToday && end >= startOfToday) return "today";
+
+  // Starts within the next 7 days → Upcoming
+  if (start <= endOfUpcoming) return "upcoming";
+
+  // Farther out
+  return "backlog";
 }
 function effectiveStatus(task) {
   const mode = task.statusMode || "auto";
@@ -171,10 +209,11 @@ function effectiveStatus(task) {
 
 // ---------- Sample data ----------
 const SAMPLE_TASKS = [
-  { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
-  { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
-  { id: uid(), title: "Pay bills", notes: "Utilities + phone", status: "upcoming", priority: "high", tags: ["finance"], nextDue: todayISO(), time: "18:00", remindBefore: [60, 10], repeat: "monthly", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
-  { id: uid(), title: "Deep clean kitchen", notes: "Stove, sink, counters, floor", status: "backlog", priority: "medium", tags: ["home"], nextDue: todayISO(), time: "", remindBefore: [], repeat: "weekly", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
+  { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), endDate: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
+  { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), endDate: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
+  { id: uid(), title: "Pay bills", notes: "Utilities + phone", status: "upcoming", priority: "high", tags: ["finance"], nextDue: todayISO(), endDate: todayISO(), time: "18:00", remindBefore: [60, 10], repeat: "monthly", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
+  // Example multi-day seed
+  { id: uid(), title: "Basement deep clean", notes: "Declutter, mop, shelves", status: "upcoming", priority: "medium", tags: ["home"], nextDue: todayISO(), endDate: toISO(addDays(new Date(), 6)), time: "", remindBefore: [], repeat: "none", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
 ];
 
 // ---------------------- App ----------------------
@@ -202,7 +241,7 @@ export default function App() {
 
   // Email/Password Auth
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [authMode, setAuthMode] = useState("signin"); // 'signin' | 'signup' | 'reset'
+  const [authMode, setAuthMode] = useState("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
 
@@ -352,10 +391,13 @@ export default function App() {
   // Completion (recurring vs one-off)
   async function completeTask(task) {
     if (task.repeat && task.repeat !== "none") {
-      const next = computeNextDue(task);
+      const nextStart = computeNextDue(task);
+      const spanDays = daysBetweenInclusive(task.nextDue, task.endDate); // 0 for single-day
+      const nextEnd = addDays(nextStart, spanDays);
       const advanced = {
         ...task,
-        nextDue: next.toISOString().slice(0, 10),
+        nextDue: toISO(nextStart),
+        endDate: toISO(nextEnd),
         lastCompletedAt: new Date().toISOString(),
         statusMode: "auto",
       };
@@ -453,7 +495,7 @@ export default function App() {
       const current = auth.currentUser;
       if (current && current.isAnonymous) {
         try {
-          await linkWithPopup(current, provider); // keep same UID
+          await linkWithPopup(current, provider);
           toast.success("Account linked to Google");
         } catch (err) {
           if (err.code === "auth/credential-already-in-use" || err.code === "auth/email-already-in-use") {
@@ -490,7 +532,7 @@ export default function App() {
       if (authMode === "signup") {
         if (current && current.isAnonymous) {
           const cred = EmailAuthProvider.credential(email, password);
-          await linkWithCredential(current, cred); // keep UID
+          await linkWithCredential(current, cred);
           toast.success("Account created & linked");
         } else {
           await createUserWithEmailAndPassword(auth, email, password);
@@ -549,13 +591,9 @@ export default function App() {
   // Calendar
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
+  // Align Monday as first day (like before)
   const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7));
   const daysArray = [...Array(42)].map((_, i) => addDays(startGrid, i));
-  const tasksByDate = useMemo(() => {
-    const map = {};
-    filteredTasks.forEach((t) => { if (t.nextDue) (map[t.nextDue] ||= []).push(t); });
-    return map;
-  }, [filteredTasks]);
 
   return (
     <div
@@ -662,7 +700,7 @@ export default function App() {
             calMonth={calMonth}
             setCalMonth={setCalMonth}
             daysArray={daysArray}
-            tasksByDate={tasksByDate}
+            tasks={filteredTasks}
             onOpen={(task) => { setEditingTask(task); setShowTaskModal(true); }}
           />
         )}
@@ -681,7 +719,7 @@ export default function App() {
               calMonth={calMonth}
               setCalMonth={setCalMonth}
               daysArray={daysArray}
-              tasksByDate={tasksByDate}
+              tasks={filteredTasks}
               onOpen={(task) => { setEditingTask(task); setShowTaskModal(true); }}
             />
           </div>
@@ -798,10 +836,10 @@ function TagAndPriorityFilters({ allTags, tagFilter, setTagFilter, priorityFilte
 
 function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
   const columnMeta = {
-    today:   { title: "Today",     hint: "Focus",   color: "from-sky-500/30 to-sky-600/30" },
-    upcoming:{ title: "Upcoming",  hint: "Next 7 days", color: "from-indigo-500/30 to-indigo-600/30" },
-    backlog: { title: "Backlog",   hint: "Later",   color: "from-amber-500/30 to-amber-600/30" },
-    done:    { title: "Completed", hint: "Archive", color: "from-emerald-500/20 to-emerald-600/20" },
+    today:   { title: "Today",     hint: "Focus",          color: "from-sky-500/30 to-sky-600/30" },
+    upcoming:{ title: "Upcoming",  hint: "Next 7 days",    color: "from-indigo-500/30 to-indigo-600/30" },
+    backlog: { title: "Backlog",   hint: "Later",          color: "from-amber-500/30 to-amber-600/30" },
+    done:    { title: "Completed", hint: "Archive",        color: "from-emerald-500/20 to-emerald-600/20" },
   };
 
   return (
@@ -881,7 +919,7 @@ function formatRepeat(t) {
     case "monthly-nth": {
       const ord = ordMap[String(t.repeatNth ?? 1)] || "1st";
       const wk  = wkMap[Number(t.repeatWeekday ?? 1)] || "Mon";
-      return `${ord} ${wk}`; // show ordinal + weekday
+      return `${ord} ${wk}`;
     }
     case "custom":   return `Every ${n} days`;
     default:         return "—";
@@ -912,7 +950,8 @@ function CardContent({ t, onEdit, onComplete, onDelete }) {
             )}
             {t.nextDue && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                <CalendarIcon className="w-3 h-3" /> {t.nextDue}
+                <CalendarIcon className="w-3 h-3" />
+                {formatRangeShort(t.nextDue, t.endDate)}
               </span>
             )}
           </div>
@@ -944,8 +983,57 @@ function CardContent({ t, onEdit, onComplete, onDelete }) {
   );
 }
 
-function CalendarView({ calMonth, setCalMonth, daysArray, tasksByDate, onOpen }) {
+function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   const isCurrentMonth = (d) => d.getMonth() === calMonth.getMonth();
+  const monIdx = (d) => (d.getDay() + 6) % 7; // Monday=0..Sunday=6
+
+  // Build 6 week starts from the 42-day grid
+  const weeks = useMemo(() => Array.from({ length: 6 }, (_, i) => daysArray[i * 7]), [daysArray]);
+
+  // For each week, compute bar segments and stack into lanes
+  function computeWeekLanes(weekStart) {
+    const weekStartDate = new Date(weekStart);
+    const weekEndDate = addDays(weekStartDate, 6);
+
+    const overlapping = tasks.filter((t) => {
+      if (!t.nextDue) return false;
+      const start = new Date(t.nextDue);
+      const end = new Date(t.endDate || t.nextDue);
+      return end >= weekStartDate && start <= weekEndDate;
+    });
+
+    // Create segments clamped to this week
+    const segs = overlapping.map((t) => {
+      const start = new Date(t.nextDue);
+      const end = new Date(t.endDate || t.nextDue);
+      const segStart = start < weekStartDate ? weekStartDate : start;
+      const segEnd = end > weekEndDate ? weekEndDate : end;
+      const colStart = monIdx(segStart);
+      const span = Math.max(1, Math.min(7 - colStart, Math.round((segEnd - segStart) / 86400000) + 1));
+      const isStart = segStart.getTime() === start.getTime();
+      const isEnd = segEnd.getTime() === end.getTime();
+      return { task: t, colStart, span, isStart, isEnd };
+    });
+
+    // Sort: earlier first, then longer span
+    segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
+
+    // Greedy lane assignment (avoid overlaps)
+    const lanes = [];
+    for (const seg of segs) {
+      let placed = false;
+      for (const lane of lanes) {
+        if (!lane.some((s) => !(seg.colStart + seg.span - 1 < s.colStart || s.colStart + s.span - 1 < seg.colStart))) {
+          lane.push(seg);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) lanes.push([seg]);
+    }
+    return lanes;
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -964,39 +1052,70 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasksByDate, onOpen })
         </button>
       </div>
 
+      {/* Weekday headers */}
       <div className="grid grid-cols-7 text-xs text-slate-300 mb-1">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d} className="px-2 py-1">{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
-        {daysArray.map((d) => {
-          const iso = d.toISOString().slice(0, 10);
-          const items = tasksByDate[iso] || [];
-          const isToday = isSameDay(d, new Date());
+      {/* 6 weeks */}
+      <div className="space-y-3">
+        {weeks.map((weekStart, wi) => {
+          const weekDays = daysArray.slice(wi * 7, wi * 7 + 7);
+          const lanes = computeWeekLanes(weekStart);
+          const isToday = (d) => isSameDay(d, new Date());
+
           return (
-            <div key={iso} className={classNames(
-              "min-h-[110px] rounded-xl border p-2 flex flex-col gap-1",
-              "border-white/10 bg-white/5",
-              !isCurrentMonth(d) && "opacity-40"
-            )}>
-              <div className="flex items-center justify-between">
-                <div className={classNames("text-sm", isToday && "font-semibold text-sky-300")}>{d.getDate()}</div>
-                {!!items.length && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/30">{items.length}</span>
-                )}
-              </div>
-              <div className="space-y-1 overflow-auto">
-                {items.slice(0, 3).map((t) => (
-                  <button key={t.id} onClick={() => onOpen(t)}
-                          className="w-full text-left text-[11px] px-2 py-1 rounded-lg bg-black/20 hover:bg-black/30 border border-white/10">
-                    <span className="opacity-80">{t.time ? `${t.time} • ` : ""}</span>{t.title}
-                  </button>
+            <div key={wi} className="rounded-xl border border-white/10 bg-white/5 p-2">
+              {/* Day cells row */}
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((d) => (
+                  <div
+                    key={d.toISOString()}
+                    className={classNames(
+                      "min-h-[60px] rounded-lg border p-2",
+                      "border-white/10 bg-white/5",
+                      !isCurrentMonth(d) && "opacity-40"
+                    )}
+                  >
+                    <div className={classNames("text-sm", isToday(d) && "font-semibold text-sky-300")}>
+                      {d.getDate()}
+                    </div>
+                  </div>
                 ))}
-                {items.length > 3 && (
-                  <div className="text-[10px] text-slate-400">+{items.length - 3} more…</div>
-                )}
+              </div>
+
+              {/* Bars lanes */}
+              <div className="mt-2 space-y-1">
+                {lanes.map((lane, li) => (
+                  <div key={li} className="grid grid-cols-7 gap-2 h-7">
+                    {lane.map((seg, si) => (
+                      <button
+                        key={si}
+                        onClick={() => onOpen(seg.task)}
+                        title={seg.task.title}
+                        style={{ gridColumn: `${seg.colStart + 1} / span ${seg.span}` }}
+                        className={classNames(
+                          "h-7 px-2 text-[11px] overflow-hidden whitespace-nowrap text-ellipsis",
+                          "flex items-center border border-white/10",
+                          "bg-[var(--accent)]",
+                          "text-[var(--accent-text)]",
+                          seg.isStart ? "rounded-l-md" : "rounded-l-none",
+                          seg.isEnd ? "rounded-r-md" : "rounded-r-none",
+                          (!seg.isStart || !seg.isEnd) && "opacity-95"
+                        )}
+                      >
+                        {seg.task.title}
+                        {isMultiDay(seg.task) && (
+                          <span className="ml-2 opacity-80">
+                            ({formatRangeShort(seg.task.nextDue, seg.task.endDate)})
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -1032,9 +1151,13 @@ function TaskModal({ open, onClose, task, onSave }) {
         delete copy._toggleChecklistId;
       }
       if (!copy.statusMode) copy.statusMode = "auto";
+      if (!copy.endDate) copy.endDate = copy.nextDue; // normalize
       setData(copy);
     } else {
-      setData({ ...emptyTask(), nextDue: todayISO() });
+      const t = emptyTask();
+      t.nextDue = todayISO();
+      t.endDate = t.nextDue;
+      setData(t);
     }
   }, [task, open]);
 
@@ -1048,6 +1171,7 @@ function TaskModal({ open, onClose, task, onSave }) {
       priority: "medium",
       tags: [],
       nextDue: todayISO(),
+      endDate: todayISO(),   // single-day by default
       time: "",
       remindBefore: [],
       repeat: "none",
@@ -1152,11 +1276,18 @@ function TaskModal({ open, onClose, task, onSave }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-300">Date</label>
+                <label className="text-xs text-slate-300">Start date</label>
                 <input
                   type="date"
                   value={data.nextDue}
-                  onChange={(e) => setData({ ...data, nextDue: e.target.value })}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setData(d => ({
+                      ...d,
+                      nextDue: v,
+                      endDate: (d.endDate && d.endDate < v) ? v : (d.endDate || v),
+                    }));
+                  }}
                   className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                 />
               </div>
@@ -1170,6 +1301,38 @@ function TaskModal({ open, onClose, task, onSave }) {
                 />
               </div>
             </div>
+
+            {/* Multi-day toggle + end date */}
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isMultiDay(data)}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setData(d => ({
+                    ...d,
+                    endDate: on ? (d.endDate || d.nextDue) : d.nextDue,
+                  }));
+                }}
+              />
+              Spans multiple days
+            </label>
+
+            {isMultiDay(data) && (
+              <div className="mt-2">
+                <label className="text-xs text-slate-300">End date</label>
+                <input
+                  type="date"
+                  value={data.endDate}
+                  min={data.nextDue}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setData(d => ({ ...d, endDate: v < d.nextDue ? d.nextDue : v }));
+                  }}
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                />
+              </div>
+            )}
 
             <div>
               <label className="text-xs text-slate-300">Reminders</label>
@@ -1233,7 +1396,7 @@ function TaskModal({ open, onClose, task, onSave }) {
                   <option value="custom">Custom (days)</option>
                 </select>
 
-                {/* Interval is always enabled; meaning depends on mode:
+                {/* Interval meaning depends on mode:
                    daily -> days, weekly -> weeks, monthly/monthly-nth -> months, custom -> days */}
                 <input
                   type="number"
@@ -1262,6 +1425,7 @@ function TaskModal({ open, onClose, task, onSave }) {
                         ...d,
                         repeatWeekday: wd,
                         nextDue: aligned.toISOString().slice(0, 10),
+                        endDate: isMultiDay(d) && d.endDate < toISO(aligned) ? toISO(aligned) : d.endDate,
                       }));
                     }}
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
@@ -1317,7 +1481,7 @@ function TaskModal({ open, onClose, task, onSave }) {
 
               <p className="text-xs text-slate-400 mt-1">
                 Tip: “Every” controls units by mode — Daily=days, Weekly=weeks, Monthly/Monthly (nth)=months, Custom=days.
-                Complete the task to auto-advance the next due date.
+                Complete the task to auto-advance the next due date (multi-day spans are preserved).
               </p>
             </div>
 
