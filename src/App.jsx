@@ -59,7 +59,6 @@ const nextWeekday = (d) => { const x = addDays(d, 1); while (x.getDay() === 0 ||
 const classNames = (...xs) => xs.filter(Boolean).join(" ");
 
 const parseTimeToDate = (iso, hhmm) => {
-  // Locale-safe parse from ISO date string
   const [y, m, d] = iso.split("-").map(Number);
   let [h, min] = [9, 0];
   if (hhmm && hhmm.includes(":")) [h, min] = hhmm.split(":").map(Number);
@@ -67,12 +66,12 @@ const parseTimeToDate = (iso, hhmm) => {
 };
 
 /* --- timezone-safe plain date helpers (no UTC drift) --- */
-const fromISO = (iso) => {                      // "YYYY-MM-DD" -> local Date (at noon to avoid DST edges)
+const fromISO = (iso) => {
   if (!iso) return new Date(NaN);
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0, 0);
+  return new Date(y, m - 1, d, 12, 0, 0, 0); // noon to dodge DST edges
 };
-const toISO = (d) => {                          // local Date -> "YYYY-MM-DD"
+const toISO = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -95,7 +94,7 @@ function sortByDue(a, b) {
   return (a.createdAt || "").localeCompare(b.createdAt || "");
 }
 const formatDateShort = (dateish) => {
-  const d = typeof dateish === "string" ? new Date(dateish) : dateish;
+  const d = typeof dateish === "string" ? fromISO(dateish) : dateish;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
@@ -174,8 +173,8 @@ function daysBetweenInclusive(startISO, endISO) {
 }
 function formatRangeShort(startISO, endISO) {
   if (!startISO) return "—";
-  const s = new Date(startISO);
-  const e = new Date(endISO || startISO);
+  const s = fromISO(startISO);
+  const e = fromISO(endISO || startISO);
   const sameDay = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
   if (sameDay) return s.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
@@ -335,7 +334,7 @@ export default function App() {
     toast(message, {
       description: task.time
         ? `${formatDateShort(parseTimeToDate(task.nextDue, task.time))} • ${task.time}`
-        : formatDateShort(new Date(task.nextDue)),
+        : formatDateShort(fromISO(task.nextDue)),
       action: { label: "Snooze 10m", onClick: () => snoozeTask(task, 10) },
     });
     if ("Notification" in window && Notification.permission === "granted") {
@@ -374,6 +373,36 @@ export default function App() {
     return bucket;
   }, [filteredTasks]);
 
+  /* ---------- One-time auto realignment for existing data ---------- */
+  useEffect(() => {
+    if (!tasksCol || !tasks.length) return;
+    const updates = [];
+    for (const t of tasks) {
+      if (!t.nextDue || !isISO(t.nextDue)) continue;
+
+      if (t.repeat === "monthly-nth" && t.repeatWeekday != null && t.repeatNth != null) {
+        const aligned = alignMonthlyNthISO(t.nextDue, Number(t.repeatWeekday), Number(t.repeatNth));
+        if (aligned !== t.nextDue) {
+          updates.push({
+            id: t.id,
+            patch: { nextDue: aligned, endDate: isMultiDay(t) && t.endDate < aligned ? aligned : t.endDate },
+          });
+        }
+      }
+
+      if (t.repeat === "weekly" && t.repeatWeekday != null) {
+        const aligned = toISO(nextOnOrAfterWeekday(t.nextDue, Number(t.repeatWeekday)));
+        if (aligned !== t.nextDue) {
+          updates.push({
+            id: t.id,
+            patch: { nextDue: aligned, endDate: isMultiDay(t) && t.endDate < aligned ? aligned : t.endDate },
+          });
+        }
+      }
+    }
+    updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
+  }, [tasksCol, tasks]);
+
   /* ---------- Writes ---------- */
   async function upsertTask(task) {
     if (user && tasksCol) {
@@ -392,7 +421,7 @@ export default function App() {
   async function completeTask(task) {
     if (task.repeat && task.repeat !== "none") {
       const nextStart = computeNextDue(task);
-      const spanDays = daysBetweenInclusive(task.nextDue, task.endDate); // 0 for single-day
+      const spanDays = daysBetweenInclusive(task.nextDue, task.endDate);
       const nextEnd = addDays(nextStart, spanDays);
       const advanced = {
         ...task,
@@ -728,7 +757,7 @@ export default function App() {
         onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
         task={editingTask}
         onSave={(task) => { upsertTask(task); setShowTaskModal(false); setEditingTask(null); }}
-        allTags={allTags}     // <-- Tag picker receives existing tags
+        allTags={allTags}
       />
 
       <EmailAuthModal
@@ -1165,7 +1194,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       priority: "medium",
       tags: [],
       nextDue: todayISO(),
-      endDate: todayISO(),   // single-day by default
+      endDate: todayISO(),
       time: "",
       remindBefore: [],
       repeat: "none",
@@ -1282,7 +1311,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                       let end = d.endDate || v;
                       if (end < v) end = v; // never before start
                       if (isMultiDay(d) && end === v) {
-                        end = toISO(addDays(fromISO(v), 1)); // keep 2-day range
+                        end = toISO(addDays(fromISO(v), 1));
                       }
                       return { ...d, nextDue: v, endDate: end };
                     });
