@@ -952,7 +952,6 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
               >
                 {columns[key].length}
               </span>
-            </div></div>
             </div>
 
             <Droppable droppableId={key}>
