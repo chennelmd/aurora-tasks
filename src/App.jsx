@@ -1312,17 +1312,21 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                 <input
                   type="date"
                   value={data.nextDue}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setData(d => {
-                      let end = d.endDate || v;
-                      if (end < v) end = v; // never before start
-                      if (isMultiDay(d) && end === v) {
-                        end = toISO(addDays(fromISO(v), 1));
-                      }
-                      return { ...d, nextDue: v, endDate: end };
-                    });
-                  }}
+                onChange={(e) => {
+                  const v = e.target.value; // YYYY-MM-DD
+                  setData((d) => {
+                    const wasMulti = isMultiDay(d);
+                    let end = d.endDate || v;
+                
+                    // never let end be before start
+                    if (end < v) end = v;
+                
+                    // keep single-day tasks single-day when start changes
+                    if (!wasMulti) end = v;
+                
+                    return { ...d, nextDue: v, endDate: end };
+                  });
+                }}
                   className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                 />
               </div>
@@ -1407,38 +1411,46 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
               <div className="mt-1 grid grid-cols-2 gap-2">
                 <select
                   value={data.repeat}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setData((d) => {
-                      if (v === "weekly") {
-                        const base = d.nextDue || todayISO();
-                        const wd = d.repeatWeekday ?? fromISO(base).getDay();
-                        const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
-                        return {
-                          ...d,
-                          repeat: v,
-                          repeatWeekday: wd,
-                          nextDue: alignedISO,
-                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
-                        };
-                      }
-                      if (v === "monthly-nth") {
-                        const base = d.nextDue || todayISO();
-                        const wd = d.repeatWeekday ?? fromISO(base).getDay();
-                        const ord = d.repeatNth ?? 1;
-                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
-                        return {
-                          ...d,
-                          repeat: v,
-                          repeatWeekday: wd,
-                          repeatNth: ord,
-                          nextDue: alignedISO,
-                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
-                        };
-                      }
-                      return { ...d, repeat: v };
-                    });
-                  }}
+               onChange={(e) => {
+                const v = e.target.value;
+                setData((d) => {
+                  const wasMulti = isMultiDay(d);
+              
+                  if (v === "weekly") {
+                    const base = d.nextDue || todayISO();
+                    const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                    const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
+                    const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
+                    return {
+                      ...d,
+                      repeat: v,
+                      repeatWeekday: wd,
+                      nextDue: alignedISO,
+                      endDate: newEnd,
+                    };
+                  }
+              
+                  if (v === "monthly-nth") {
+                    const base = d.nextDue || todayISO();
+                    const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                    const ord = d.repeatNth ?? 1;
+                    const alignedISO = alignMonthlyNthISO(base, wd, ord);
+                    const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
+                    return {
+                      ...d,
+                      repeat: v,
+                      repeatWeekday: wd,
+                      repeatNth: ord,
+                      nextDue: alignedISO,
+                      endDate: newEnd,
+                    };
+                  }
+              
+                  // other modes don’t realign; keep single-day tasks single-day
+                  const newEnd = wasMulti ? d.endDate : d.nextDue;
+                  return { ...d, repeat: v, endDate: newEnd };
+                });
+              }}
                   className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                 >
                   <option value="none">None</option>
@@ -1472,17 +1484,15 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <select
                     value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
-                    onChange={(e) => {
-                      const wd = Number(e.target.value);
-                      const aligned = nextOnOrAfterWeekday(data.nextDue || todayISO(), wd);
-                      const iso = toISO(aligned);
-                      setData(d => ({
-                        ...d,
-                        repeatWeekday: wd,
-                        nextDue: iso,
-                        endDate: isMultiDay(d) && d.endDate < iso ? iso : d.endDate,
-                      }));
-                    }}
+                onChange={(e) => {
+                  const wd = Number(e.target.value);
+                  const iso = toISO(nextOnOrAfterWeekday(data.nextDue || todayISO(), wd));
+                  setData(d => {
+                    const wasMulti = isMultiDay(d);
+                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
+                  });
+                }}
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                     title="Repeat on this weekday"
                   >
@@ -1508,18 +1518,16 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                     value={data.repeatNth ?? 1}
                     onChange={(e) => {
                       const ord = Number(e.target.value);
-                      setData((d) => {
+                      setData(d => {
                         const base = d.nextDue || todayISO();
                         const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
-                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
-                        return {
-                          ...d,
-                          repeatNth: ord,
-                          nextDue: alignedISO,
-                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
-                        };
+                        const iso = alignMonthlyNthISO(base, wd, ord);
+                        const wasMulti = isMultiDay(d);
+                        const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                        return { ...d, repeatNth: ord, nextDue: iso, endDate: newEnd };
                       });
                     }}
+
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                     title="Which occurrence in the month"
                   >
@@ -1530,33 +1538,35 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                     <option value={-1}>Last</option>
                   </select>
 
-                  <select
-                    value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
-                    onChange={(e) => {
-                      const wd = Number(e.target.value);
-                      setData((d) => {
-                        const base = d.nextDue || todayISO();
-                        const ord = Number(d.repeatNth ?? 1);
-                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
-                        return {
-                          ...d,
-                          repeatWeekday: wd,
-                          nextDue: alignedISO,
-                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
-                        };
-                      });
-                    }}
-                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                    title="Pick a weekday"
-                  >
-                    <option value={1}>Monday</option>
-                    <option value={2}>Tuesday</option>
-                    <option value={3}>Wednesday</option>
-                    <option value={4}>Thursday</option>
-                    <option value={5}>Friday</option>
-                    <option value={6}>Saturday</option>
-                    <option value={0}>Sunday</option>
-                  </select>
+              {/* #4 — Monthly (nth) weekday picker */}
+              <select
+                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+                onChange={(e) => {
+                  const wd = Number(e.target.value);
+                  setData(d => {
+                    const base = d.nextDue || todayISO();
+                    const ord  = Number(d.repeatNth ?? 1);
+                    const iso  = alignMonthlyNthISO(base, wd, ord);
+              
+                    // keep single-day tasks single-day; clamp multi-day end >= start
+                    const wasMulti = isMultiDay(d);
+                    const newEnd   = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+              
+                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                title="Pick a weekday"
+              >
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+                <option value={0}>Sunday</option>
+              </select>
+
                 </div>
               )}
 
