@@ -301,16 +301,37 @@ export default function App() {
     apply(prefs.theme);
   }, [prefs.theme]);
 
-  // Apply custom theme colors as CSS variables
+  
+  // Apply flat theme tokens
   useEffect(() => {
-    const c = { ...defaultTheme, ...(prefs.themeColors || {}) };
+    const isDark =
+      prefs.theme === "dark" ||
+      (prefs.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+    const t = isDark
+      ? { base:"#1B2230", surface:"#242B39", subsurface:"#2A3140", border:"#2D3545", rule:"#2C3240", text:"#E6EAF2", meta:"#A9B1C3", countBg:"#303747" }
+      : { base:"#F6F7FB", surface:"#FFFFFF", subsurface:"#F9FAFD", border:"#E7EBF1", rule:"#E5E8EE", text:"#0B1220", meta:"#6B7280", countBg:"#EFF2F7" };
+
     const root = document.documentElement;
-    root.style.setProperty("--bg-from", c.from);
-    root.style.setProperty("--bg-via",  c.via);
-    root.style.setProperty("--bg-to",   c.to);
-    root.style.setProperty("--accent",  c.accent);
-    root.style.setProperty("--accent-text", getContrastText(c.accent));
-  }, [prefs.themeColors]);
+    root.style.setProperty("--base", t.base);
+    root.style.setProperty("--surface", t.surface);
+    root.style.setProperty("--subsurface", t.subsurface);
+    root.style.setProperty("--border", t.border);
+    root.style.setProperty("--rule", t.rule);
+    root.style.setProperty("--text", t.text);
+    root.style.setProperty("--meta", t.meta);
+    root.style.setProperty("--count-bg", t.countBg);
+
+    const accent = (prefs.themeColors && prefs.themeColors.accent) || "#38BDF8";
+    root.style.setProperty("--accent", accent);
+    root.style.setProperty("--accent-text", getContrastText(accent));
+
+    // flatten any leftover gradient usages
+    root.style.setProperty("--bg-from", t.base);
+    root.style.setProperty("--bg-via",  t.base);
+    root.style.setProperty("--bg-to",   t.base);
+  }, [prefs.theme, prefs.themeColors]);
+
 
   // Firestore listeners & seed
   useEffect(() => {
@@ -913,16 +934,25 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {Object.keys(columnMeta).map((key) => (
-          <div key={key} className="rounded-2xl border p-3 overflow-visible shadow-sm"
-            style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-            <div className="flex items-center justify-between px-1 pb-2">
-              <div>
-                <div className="text-sm" style={{ color: "var(--meta)" }}>{columnMeta[key].hint}</div>
-                <div className="font-semibold flex items-center gap-2">
-                  <span className="">{columnMeta[key].title}</span>
-                  <span className="text-[11px] px-1.5 py-0.5 rounded-md" style={{ background: "var(--count-bg)", color: "var(--meta)" }}>{columns[key].length}</span>
+          <div key={key} className="relative pl-3">
+            <div className="absolute left-0 top-0 bottom-0" style={{ width: 1, background: "var(--rule)" }} aria-hidden />
+            <div className="flex items-center gap-2 px-1 pb-2">
+              <div className="flex-1">
+                <div className="text-[15px] font-semibold leading-tight" style={{ color: "var(--text)" }}>
+                  {columnMeta[key].hint}
+                </div>
+                <div className="text-[12px]" style={{ color: "var(--meta)" }}>
+                  {columnMeta[key].title}
                 </div>
               </div>
+              <span
+                className="text-[11px] px-1.5 py-0.5 rounded-md"
+                style={{ background: "var(--count-bg)", color: "var(--meta)" }}
+                title="count"
+              >
+                {columns[key].length}
+              </span>
+            </div></div>
             </div>
 
             <Droppable droppableId={key}>
@@ -948,6 +978,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                   transition={{ duration: 0.15 }}
                                   layout={false}
                                   className="group rounded-2xl border p-3 shadow-sm hover:shadow-md transition"
+                                  style={{ background: "var(--subsurface)", borderColor: "var(--border)" }}
                                 >
                                   <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
                                 </motion.div>
@@ -1108,7 +1139,7 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
       return lanes;
     }
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
+    <div className="rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
       <div className="flex items-center gap-2 mb-3">
         <button className="p-2 rounded-lg hover:bg-white/10" onClick={() => setCalMonth(addMonths(calMonth, -1))}>
           <ChevronLeft className="w-5 h-5" />
