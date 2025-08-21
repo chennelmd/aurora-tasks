@@ -1320,28 +1320,25 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}><X className="w-5 h-5" /></button>
         </div>
 
-        <div cl<div className="space-y-1">
+            <div className="space-y-1">
               <label className="text-xs text-slate-300">Title</label>
               <div className="relative flex items-center gap-2">
                 <input
                   ref={titleRef}
-                  value={data.title}
+                  value={data.title || ""}                     // safe controlled value
                   onChange={(e) => setData({ ...data, title: e.target.value })}
                   className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                   placeholder="What do you need to do?"
                 />
                 <EmojiPickerButton
                   inputRef={titleRef}
-                  theme={"dark"}
+                  theme={"dark"}                               // use "light" if needed
                   className="rounded-lg border px-2 py-1"
                   style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
                 />
               </div>
-            </div>white/10"
-                placeholder="What do you need to do?"
-              />
             </div>
-            <div>
+        
               <label className="text-xs text-slate-300">Notes</label>
               <textarea
                 value={data.notes}
