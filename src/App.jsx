@@ -1315,30 +1315,45 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-semibold">{task ? "Edit task" : "New task"}</div>
-          <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}><X className="w-5 h-5" /></button>
-        </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-slate-300">Title</label>
-              <div className="relative flex items-center gap-2">
-                <input
-                  ref={titleRef}
-                  value={data.title || ""}                     // safe controlled value
-                  onChange={(e) => setData({ ...data, title: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                  placeholder="What do you need to do?"
-                />
-                <EmojiPickerButton
-                  inputRef={titleRef}
-                  theme={"dark"}                               // use "light" if needed
-                  className="rounded-lg border px-2 py-1"
-                  style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
-                />
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold">{task ? "Edit task" : "New task"}</div>
+                <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            </div>
-        
+              
+              {/* Form grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* LEFT column */}
+                <div className="space-y-3">
+                  {/*----------------------Title Block-----------------------*/}
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-300">Title</label>
+                    <div className="relative flex items-center gap-2">
+                      <input
+                        ref={titleRef}
+                        value={data.title || ""}      // safe controlled value
+                        onChange={(e) => setData({ ...data, title: e.target.value })}
+                        className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                        placeholder="What do you need to do?"
+                      />
+                      <EmojiPickerButton
+                        inputRef={titleRef}
+                        theme={"dark"}                // use "light" if needed
+                        className="rounded-lg border px-2 py-1"
+                        style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
+                      />
+                    </div>
+                  </div>
+                  {/* …other LEFT column sections… */}
+                </div> {/* LEFT column end */}
+              
+                {/* RIGHT column */}
+                <div className="space-y-3">
+                  {/* Recurring / Quick actions / Save … */}
+                </div> {/* RIGHT column end */}
+              </div> {/* Grid wrapper end */}
+  
               <label className="text-xs text-slate-300">Notes</label>
               <textarea
                 value={data.notes}
