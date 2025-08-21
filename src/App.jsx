@@ -48,9 +48,8 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-// ---------------------- utils ----------------------
+/* ---------------------- utils ---------------------- */
 const uid = () => Math.random().toString(36).slice(2, 9);
-const todayISO = () => new Date().toISOString().slice(0, 10);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -60,13 +59,28 @@ const nextWeekday = (d) => { const x = addDays(d, 1); while (x.getDay() === 0 ||
 const classNames = (...xs) => xs.filter(Boolean).join(" ");
 
 const parseTimeToDate = (iso, hhmm) => {
+  // Locale-safe parse from ISO date string
   const [y, m, d] = iso.split("-").map(Number);
   let [h, min] = [9, 0];
   if (hhmm && hhmm.includes(":")) [h, min] = hhmm.split(":").map(Number);
   return new Date(y, m - 1, d, h, min, 0, 0);
 };
 
-// ---- sorting helpers ----
+/* --- timezone-safe plain date helpers (no UTC drift) --- */
+const fromISO = (iso) => {                      // "YYYY-MM-DD" -> local Date (at noon to avoid DST edges)
+  if (!iso) return new Date(NaN);
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+};
+const toISO = (d) => {                          // local Date -> "YYYY-MM-DD"
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const todayISO = () => toISO(new Date());
+
+/* ---- sorting helpers ---- */
 function taskDueDate(t) {
   if (!t.nextDue) return null;
   const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
@@ -80,33 +94,25 @@ function sortByDue(a, b) {
   if (db) return 1;
   return (a.createdAt || "").localeCompare(b.createdAt || "");
 }
-
 const formatDateShort = (dateish) => {
   const d = typeof dateish === "string" ? new Date(dateish) : dateish;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-// ---- THEME helpers ----
-const defaultTheme = {
-  from: "#0b1220",
-  via:  "#1b2450",
-  to:   "#0ea5e9",
-  accent: "#38bdf8",
-};
+/* ---- THEME helpers ---- */
+const defaultTheme = { from: "#0b1220", via: "#1b2450", to: "#0ea5e9", accent: "#38bdf8" };
 function getContrastText(hex) {
   let c = (hex || "#000").replace("#", "");
   if (c.length === 3) c = c.split("").map(x => x + x).join("");
-  const r = parseInt(c.slice(0,2), 16);
-  const g = parseInt(c.slice(2,4), 16);
-  const b = parseInt(c.slice(4,6), 16);
+  const r = parseInt(c.slice(0,2), 16), g = parseInt(c.slice(2,4), 16), b = parseInt(c.slice(4,6), 16);
   const yiq = (r*299 + g*587 + b*114) / 1000;
   return yiq >= 150 ? "#000000" : "#ffffff";
 }
 
-// ---- extra date helpers (nth weekday etc.) ----
+/* ---- extra date helpers (nth weekday etc.) ---- */
 const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 const nextOnOrAfterWeekday = (dateish, weekday) => {
-  const d = typeof dateish === "string" ? new Date(dateish) : new Date(dateish.valueOf());
+  const d = typeof dateish === "string" ? fromISO(dateish) : new Date(dateish.valueOf());
   const diff = (weekday - d.getDay() + 7) % 7;
   d.setDate(d.getDate() + diff);
   return d;
@@ -141,27 +147,30 @@ function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
   }
   return candidate;
 }
+// Snap to the next date on/after baseISO that matches ordinal+weekday
+function alignMonthlyNthISO(baseISO, weekday, ordinal) {
+  const base = fromISO(baseISO || todayISO());
+  let cand = nthWeekdayOfMonth(base.getFullYear(), base.getMonth(), weekday, ordinal);
+  if (!cand || cand < base) cand = nextMonthlyNth(base, 1, weekday, ordinal);
+  return toISO(cand);
+}
 
-// ---- range helpers for multi-day tasks ----
-const toISO = (d) => d.toISOString().slice(0, 10);
+/* ---- range helpers for multi-day tasks ---- */
 const isMultiDay = (t) => !!t.nextDue && !!t.endDate && t.endDate !== t.nextDue;
 function eachDateInRange(startISO, endISO) {
   if (!startISO) return [];
-  const start = new Date(startISO);
-  const end = new Date(endISO || startISO);
+  const start = fromISO(startISO);
+  const end = fromISO(endISO || startISO);
   const days = [];
   const d = new Date(start);
-  while (d <= end) {
-    days.push(toISO(d));
-    d.setDate(d.getDate() + 1);
-  }
+  while (d <= end) { days.push(toISO(d)); d.setDate(d.getDate() + 1); }
   return days;
 }
 function daysBetweenInclusive(startISO, endISO) {
   if (!startISO) return 0;
-  const s = new Date(startISO);
-  const e = new Date(endISO || startISO);
-  return Math.max(0, Math.round((e - s) / (24 * 3600 * 1000)));
+  const s = fromISO(startISO);
+  const e = fromISO(endISO || startISO);
+  return Math.max(0, Math.round((e - s) / 86400000));
 }
 function formatRangeShort(startISO, endISO) {
   if (!startISO) return "—";
@@ -175,9 +184,8 @@ function formatRangeShort(startISO, endISO) {
   return `${sStr}–${eStr}`;
 }
 
-// ---------- Auto-placement helpers ----------
+/* ---------- Auto-placement helpers ---------- */
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
-
 function computeAutoStatus(task, now = new Date()) {
   if (task.status === "done") return "done";
   if (!task.nextDue || !isISO(task.nextDue)) return "backlog";
@@ -190,16 +198,9 @@ function computeAutoStatus(task, now = new Date()) {
   const endOfToday   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   const endOfUpcoming = new Date(endOfToday); endOfUpcoming.setDate(endOfUpcoming.getDate() + 7);
 
-  // Entire range ended before today → treat as overdue (Today)
-  if (end < startOfToday) return "today";
-
-  // Any overlap with today → Today
-  if (start <= endOfToday && end >= startOfToday) return "today";
-
-  // Starts within the next 7 days → Upcoming
-  if (start <= endOfUpcoming) return "upcoming";
-
-  // Farther out
+  if (end < startOfToday) return "today";                      // overdue range
+  if (start <= endOfToday && end >= startOfToday) return "today"; // overlaps today
+  if (start <= endOfUpcoming) return "upcoming";               // starts within 7 days
   return "backlog";
 }
 function effectiveStatus(task) {
@@ -207,16 +208,15 @@ function effectiveStatus(task) {
   return mode === "manual" ? (task.status || "today") : computeAutoStatus(task);
 }
 
-// ---------- Sample data ----------
+/* ---------- Sample data ---------- */
 const SAMPLE_TASKS = [
   { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), endDate: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
   { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), endDate: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
   { id: uid(), title: "Pay bills", notes: "Utilities + phone", status: "upcoming", priority: "high", tags: ["finance"], nextDue: todayISO(), endDate: todayISO(), time: "18:00", remindBefore: [60, 10], repeat: "monthly", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
-  // Example multi-day seed
   { id: uid(), title: "Basement deep clean", notes: "Declutter, mop, shelves", status: "upcoming", priority: "medium", tags: ["home"], nextDue: todayISO(), endDate: toISO(addDays(new Date(), 6)), time: "", remindBefore: [], repeat: "none", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
 ];
 
-// ---------------------- App ----------------------
+/* ---------------------- App ---------------------- */
 export default function App() {
   // Auth
   const [user, setUser] = useState(null);
@@ -360,7 +360,7 @@ export default function App() {
     });
   }, [tasks, query, tagFilter, priorityFilter]);
 
-  // ---------- Columns with 7-day Upcoming + sorting ----------
+  /* ---------- Columns with 7-day Upcoming + sorting ---------- */
   const columns = useMemo(() => {
     const bucket = { today: [], upcoming: [], backlog: [], done: [] };
     for (const t of filteredTasks) {
@@ -374,7 +374,7 @@ export default function App() {
     return bucket;
   }, [filteredTasks]);
 
-  // Writes
+  /* ---------- Writes ---------- */
   async function upsertTask(task) {
     if (user && tasksCol) {
       await setDoc(doc(tasksCol, task.id), task, { merge: true });
@@ -438,8 +438,8 @@ export default function App() {
         return next;
       }
       case "monthly-nth": {
-        const weekday = Number(task.repeatWeekday ?? 1); // 0=Sun..6=Sat
-        const ordinal = Number(task.repeatNth ?? 1);     // 1..4 or -1 for Last
+        const weekday = Number(task.repeatWeekday ?? 1);
+        const ordinal = Number(task.repeatNth ?? 1);
         return nextMonthlyNth(base, Math.max(1, n), weekday, ordinal);
       }
       case "custom":   return addDays(base, n);
@@ -447,7 +447,7 @@ export default function App() {
     }
   }
 
-  // ---------- DnD: manual override on drag ----------
+  /* ---------- DnD: manual override on drag ---------- */
   async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
@@ -457,14 +457,14 @@ export default function App() {
     toast("Manual override enabled for this task");
   }
 
-  // Export / Import JSON
+  /* ---------- Export / Import JSON ---------- */
   function exportData() {
     const payload = { tasks, prefs, exportedAt: new Date().toISOString(), version: 1 };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `aurora-tasks-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `aurora-tasks-${toISO(new Date())}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Exported backup");
@@ -588,11 +588,10 @@ export default function App() {
     toast("Signed out");
   }
 
-  // Calendar
+  /* ---------- Calendar state ---------- */
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
-  // Align Monday as first day (like before)
-  const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7));
+  const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7)); // Monday grid start
   const daysArray = [...Array(42)].map((_, i) => addDays(startGrid, i));
 
   return (
@@ -639,13 +638,11 @@ export default function App() {
               <Palette className="w-5 h-5" />
             </button>
 
-            {/* New task (accent) */}
+            {/* New task */}
             <button
               onClick={() => setShowTaskModal(true)}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg"
-              style={{ background: "var(--accent)", color: "var(--accent-text)", boxShadow: "0 10px 25px rgba(0,0,0,0.25)", transition: "filter 120ms ease" }}
-              onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
+              style={{ background: "var(--accent)", color: "var(--accent-text)", boxShadow: "0 10px 25px rgba(0,0,0,0.25)" }}
             >
               <Plus className="w-4 h-4" /> New
             </button>
@@ -704,7 +701,6 @@ export default function App() {
             onOpen={(task) => { setEditingTask(task); setShowTaskModal(true); }}
           />
         )}
-
         {prefs.view === "split" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Kanban
@@ -732,6 +728,7 @@ export default function App() {
         onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
         task={editingTask}
         onSave={(task) => { upsertTask(task); setShowTaskModal(false); setEditingTask(null); }}
+        allTags={allTags}     // <-- Tag picker receives existing tags
       />
 
       <EmailAuthModal
@@ -767,10 +764,9 @@ export default function App() {
   );
 }
 
-// ---------- Portal for dragged cards ----------
+/* ---------- Portal for dragged cards ---------- */
 function DragPortal({ children, isDragging }) {
   const portalRef = React.useRef(null);
-
   React.useEffect(() => {
     let el = document.getElementById("drag-portal");
     if (!el) {
@@ -782,13 +778,12 @@ function DragPortal({ children, isDragging }) {
     }
     portalRef.current = el;
   }, []);
-
   return isDragging && portalRef.current
     ? ReactDOM.createPortal(children, portalRef.current)
     : children;
 }
 
-// ---------- UI pieces ----------
+/* ---------- UI pieces ---------- */
 function ViewToggle({ value, onChange }) {
   const options = [
     { key: "kanban", label: "Kanban", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -818,14 +813,12 @@ function TagAndPriorityFilters({ allTags, tagFilter, setTagFilter, priorityFilte
         <option value="all">All tags</option>
         {allTags.map((t) => (<option key={t} value={t}>{t}</option>))}
       </select>
-
       <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/10 rounded-xl" title="Filter by priority">
         <option value="all">All priorities</option>
         <option value="high">High</option>
         <option value="medium">Medium</option>
         <option value="low">Low</option>
       </select>
-
       <label className="ml-2 flex items-center gap-2 text-sm">
         <input type="checkbox" className="accent-sky-400" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
         Show completed
@@ -919,7 +912,8 @@ function formatRepeat(t) {
     case "monthly-nth": {
       const ord = ordMap[String(t.repeatNth ?? 1)] || "1st";
       const wk  = wkMap[Number(t.repeatWeekday ?? 1)] || "Mon";
-      return `${ord} ${wk}`;
+      const step = Number(t.repeatIntervalDays || 1);
+      return step === 1 ? `${ord} ${wk}` : `Every ${step} months (${ord} ${wk})`;
     }
     case "custom":   return `Every ${n} days`;
     default:         return "—";
@@ -997,15 +991,15 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
 
     const overlapping = tasks.filter((t) => {
       if (!t.nextDue) return false;
-      const start = new Date(t.nextDue);
-      const end = new Date(t.endDate || t.nextDue);
+      const start = fromISO(t.nextDue);
+      const end = fromISO(t.endDate || t.nextDue);
       return end >= weekStartDate && start <= weekEndDate;
     });
 
     // Create segments clamped to this week
     const segs = overlapping.map((t) => {
-      const start = new Date(t.nextDue);
-      const end = new Date(t.endDate || t.nextDue);
+      const start = fromISO(t.nextDue);
+      const end = fromISO(t.endDate || t.nextDue);
       const segStart = start < weekStartDate ? weekStartDate : start;
       const segEnd = end > weekEndDate ? weekEndDate : end;
       const colStart = monIdx(segStart);
@@ -1138,8 +1132,8 @@ function ShieldPill({ icon, text }) {
   );
 }
 
-// ---------- Task Modal ----------
-function TaskModal({ open, onClose, task, onSave }) {
+/* ---------- Task Modal ---------- */
+function TaskModal({ open, onClose, task, onSave, allTags }) {
   const [data, setData] = useState(() => emptyTask());
 
   useEffect(() => {
@@ -1175,7 +1169,7 @@ function TaskModal({ open, onClose, task, onSave }) {
       time: "",
       remindBefore: [],
       repeat: "none",
-      repeatIntervalDays: 1,
+      repeatIntervalDays: 1, // daily:days, weekly:weeks, monthly/monthly-nth:months, custom:days
       repeatNth: 1,          // 1..4 or -1 "last"
       repeatWeekday: 1,      // 0=Sun..6=Sat
       createdAt: new Date().toISOString(),
@@ -1190,7 +1184,9 @@ function TaskModal({ open, onClose, task, onSave }) {
 
   const save = () => {
     if (!data.title.trim()) return toast.error("Please add a title");
-    onSave(data);
+    const start = data.nextDue;
+    const end   = !data.endDate || data.endDate < start ? start : data.endDate;
+    onSave({ ...data, endDate: end });
     toast.success("Task saved");
   };
 
@@ -1277,24 +1273,22 @@ function TaskModal({ open, onClose, task, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-300">Start date</label>
-            <input
-              type="date"
-              value={data.nextDue}
-              onChange={(e) => {
-                const v = e.target.value;
-                setData(d => {
-                  let end = d.endDate || v;
-                  if (end < v) end = v; // never before start
-                  // if multi-day, make sure end stays at least +1 day past start
-                  if (isMultiDay(d) && end === v) {
-                    end = toISO(addDays(new Date(v), 1));
-                  }
-                  return { ...d, nextDue: v, endDate: end };
-                });
-              }}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            />
-
+                <input
+                  type="date"
+                  value={data.nextDue}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setData(d => {
+                      let end = d.endDate || v;
+                      if (end < v) end = v; // never before start
+                      if (isMultiDay(d) && end === v) {
+                        end = toISO(addDays(fromISO(v), 1)); // keep 2-day range
+                      }
+                      return { ...d, nextDue: v, endDate: end };
+                    });
+                  }}
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                />
               </div>
               <div>
                 <label className="text-xs text-slate-300">Time</label>
@@ -1307,7 +1301,7 @@ function TaskModal({ open, onClose, task, onSave }) {
               </div>
             </div>
 
-            {/* Multi-day toggle */}
+            {/* Multi-day toggle + end date */}
             <label className="mt-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1315,17 +1309,17 @@ function TaskModal({ open, onClose, task, onSave }) {
                 onChange={(e) => {
                   const on = e.target.checked;
                   setData(d => {
-                    if (!on) return { ...d, endDate: d.nextDue }; // collapse to single day
+                    if (!on) return { ...d, endDate: d.nextDue }; // collapse
                     const curEnd = d.endDate || d.nextDue;
-                    const needsBump = curEnd <= d.nextDue;        // ensure at least +1 day
-                    const bumped = toISO(addDays(new Date(d.nextDue), 1));
+                    const needsBump = curEnd <= d.nextDue;
+                    const bumped = toISO(addDays(fromISO(d.nextDue), 1));
                     return { ...d, endDate: needsBump ? bumped : curEnd };
                   });
                 }}
               />
               Spans multiple days
             </label>
-            
+
             {isMultiDay(data) && (
               <div className="mt-2">
                 <label className="text-xs text-slate-300">End date</label>
@@ -1360,17 +1354,14 @@ function TaskModal({ open, onClose, task, onSave }) {
               </div>
             </div>
 
+            {/* Tag picker */}
             <div>
               <label className="text-xs text-slate-300">Tags</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {(data.tags || []).map((t) => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10">
-                    #{t} <button className="ml-1 opacity-60 hover:opacity-100"
-                                onClick={() => setData((d) => ({ ...d, tags: d.tags.filter((x) => x !== t) }))}>✕</button>
-                  </span>
-                ))}
-                <TagAdder onAdd={(t) => t && setData((d) => ({ ...d, tags: Array.from(new Set([...(d.tags || []), t])) }))} />
-              </div>
+              <TagPicker
+                available={allTags}
+                value={data.tags || []}
+                onChange={(next) => setData((d) => ({ ...d, tags: next }))}
+              />
             </div>
           </div>
 
@@ -1382,16 +1373,35 @@ function TaskModal({ open, onClose, task, onSave }) {
                   value={data.repeat}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setData(d => ({
-                      ...d,
-                      repeat: v,
-                      ...(v === "weekly" && d.repeatWeekday == null
-                        ? { repeatWeekday: new Date(d.nextDue || todayISO()).getDay() }
-                        : {}),
-                      ...(v === "monthly-nth" && d.repeatNth == null
-                        ? { repeatNth: 1, repeatWeekday: new Date(d.nextDue || todayISO()).getDay() }
-                        : {}),
-                    }));
+                    setData((d) => {
+                      if (v === "weekly") {
+                        const base = d.nextDue || todayISO();
+                        const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                        const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
+                        return {
+                          ...d,
+                          repeat: v,
+                          repeatWeekday: wd,
+                          nextDue: alignedISO,
+                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
+                        };
+                      }
+                      if (v === "monthly-nth") {
+                        const base = d.nextDue || todayISO();
+                        const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                        const ord = d.repeatNth ?? 1;
+                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
+                        return {
+                          ...d,
+                          repeat: v,
+                          repeatWeekday: wd,
+                          repeatNth: ord,
+                          nextDue: alignedISO,
+                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
+                        };
+                      }
+                      return { ...d, repeat: v };
+                    });
                   }}
                   className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                 >
@@ -1425,15 +1435,16 @@ function TaskModal({ open, onClose, task, onSave }) {
               {data.repeat === "weekly" && (
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <select
-                    value={data.repeatWeekday ?? new Date(data.nextDue || todayISO()).getDay()}
+                    value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
                     onChange={(e) => {
                       const wd = Number(e.target.value);
                       const aligned = nextOnOrAfterWeekday(data.nextDue || todayISO(), wd);
+                      const iso = toISO(aligned);
                       setData(d => ({
                         ...d,
                         repeatWeekday: wd,
-                        nextDue: aligned.toISOString().slice(0, 10),
-                        endDate: isMultiDay(d) && d.endDate < toISO(aligned) ? toISO(aligned) : d.endDate,
+                        nextDue: iso,
+                        endDate: isMultiDay(d) && d.endDate < iso ? iso : d.endDate,
                       }));
                     }}
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
@@ -1459,7 +1470,20 @@ function TaskModal({ open, onClose, task, onSave }) {
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <select
                     value={data.repeatNth ?? 1}
-                    onChange={(e) => setData({ ...data, repeatNth: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const ord = Number(e.target.value);
+                      setData((d) => {
+                        const base = d.nextDue || todayISO();
+                        const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
+                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
+                        return {
+                          ...d,
+                          repeatNth: ord,
+                          nextDue: alignedISO,
+                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
+                        };
+                      });
+                    }}
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                     title="Which occurrence in the month"
                   >
@@ -1471,8 +1495,21 @@ function TaskModal({ open, onClose, task, onSave }) {
                   </select>
 
                   <select
-                    value={data.repeatWeekday ?? new Date(data.nextDue || todayISO()).getDay()}
-                    onChange={(e) => setData({ ...data, repeatWeekday: Number(e.target.value) })}
+                    value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+                    onChange={(e) => {
+                      const wd = Number(e.target.value);
+                      setData((d) => {
+                        const base = d.nextDue || todayISO();
+                        const ord = Number(d.repeatNth ?? 1);
+                        const alignedISO = alignMonthlyNthISO(base, wd, ord);
+                        return {
+                          ...d,
+                          repeatWeekday: wd,
+                          nextDue: alignedISO,
+                          endDate: isMultiDay(d) && d.endDate < alignedISO ? alignedISO : d.endDate,
+                        };
+                      });
+                    }}
                     className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
                     title="Pick a weekday"
                   >
@@ -1531,18 +1568,101 @@ function TaskModal({ open, onClose, task, onSave }) {
   );
 }
 
-function TagAdder({ onAdd }) {
-  const [val, setVal] = useState("");
+/* ---------- Tag Picker ---------- */
+function TagPicker({ available = [], value = [], onChange }) {
+  const [input, setInput] = React.useState("");
+  const normalized = React.useMemo(
+    () => Array.from(new Set(available.map((t) => String(t).trim()).filter(Boolean))).sort(),
+    [available]
+  );
+  const selected = value;
+  const lower = input.toLowerCase();
+
+  const suggestions = React.useMemo(
+    () =>
+      normalized
+        .filter((t) => !selected.includes(t))
+        .filter((t) => (lower ? t.toLowerCase().includes(lower) : true))
+        .slice(0, 8),
+    [normalized, selected, lower]
+  );
+
+  const add = (tag) => {
+    const clean = (tag || "").trim();
+    if (!clean) return;
+    onChange(Array.from(new Set([...selected, clean])));
+    setInput("");
+  };
+
+  const remove = (tag) => onChange(selected.filter((t) => t !== tag));
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!val.trim()) return; onAdd(val.trim()); setVal(""); }}
-          className="flex items-center gap-2">
-      <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="tag"
-             className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 text-xs w-24" />
-      <button className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">Add</button>
-    </form>
+    <div className="mt-1">
+      {/* Selected chips */}
+      <div className="flex flex-wrap gap-2 mb-2">
+        {selected.map((t) => (
+          <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
+            #{t}
+            <button
+              type="button"
+              className="ml-1 opacity-60 hover:opacity-100"
+              onClick={() => remove(t)}
+              aria-label={`Remove ${t}`}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {/* Input */}
+      <div className="relative">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(input);
+            }
+          }}
+          placeholder="Add or select tag…"
+          className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+        />
+
+        {/* Suggestions dropdown */}
+        {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
+          <div className="absolute left-0 right-0 mt-1 rounded-xl border border-white/10 bg-black/70 backdrop-blur p-1 max-h-48 overflow-auto z-10">
+            {suggestions.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => add(t)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-sm"
+              >
+                #{t}
+              </button>
+            ))}
+            {input && !normalized.some((t) => t.toLowerCase() === lower) && (
+              <>
+                {suggestions.length > 0 && <div className="my-1 h-px bg-white/10" />}
+                <button
+                  type="button"
+                  onClick={() => add(input)}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-sm"
+                >
+                  Create “#{input}”
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
+/* ---------- Visuals & other modals ---------- */
 function AuroraBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10">
