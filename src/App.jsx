@@ -117,18 +117,19 @@ const nextOnOrAfterWeekday = (dateish, weekday) => {
   return d;
 };
 function nthWeekdayOfMonth(y, m, weekday, ordinal) {
+  const make = (Y, M, day) => new Date(Y, M, day, 12, 0, 0, 0); // always noon
+
   if (ordinal === -1) {
     const last = new Date(y, m + 1, 0);
     const diff = (last.getDay() - weekday + 7) % 7;
-    last.setDate(last.getDate() - diff);
-    return last;
+    return make(y, m, last.getDate() - diff);
   } else {
     const first = new Date(y, m, 1);
     const diff = (weekday - first.getDay() + 7) % 7;
     const day = 1 + diff + (ordinal - 1) * 7;
     const dim = daysInMonth(y, m);
     if (day > dim) return null;
-    return new Date(y, m, day);
+    return make(y, m, day);
   }
 }
 function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
@@ -148,10 +149,17 @@ function nextMonthlyNth(base, monthsStep, weekday, ordinal) {
 }
 // Snap to the next date on/after baseISO that matches ordinal+weekday
 function alignMonthlyNthISO(baseISO, weekday, ordinal) {
-  const base = fromISO(baseISO || todayISO());
+  const baseStr = baseISO || todayISO();
+  const base = fromISO(baseStr);
+
   let cand = nthWeekdayOfMonth(base.getFullYear(), base.getMonth(), weekday, ordinal);
-  if (!cand || cand < base) cand = nextMonthlyNth(base, 1, weekday, ordinal);
-  return toISO(cand);
+  if (!cand) return toISO(nextMonthlyNth(base, 1, weekday, ordinal));
+
+  const candStr = toISO(cand);
+  if (candStr < baseStr) {
+    return toISO(nextMonthlyNth(base, 1, weekday, ordinal));
+  }
+  return candStr;
 }
 
 /* ---- range helpers for multi-day tasks ---- */
@@ -374,34 +382,33 @@ export default function App() {
   }, [filteredTasks]);
 
   /* ---------- One-time auto realignment for existing data ---------- */
-  useEffect(() => {
-    if (!tasksCol || !tasks.length) return;
-    const updates = [];
-    for (const t of tasks) {
-      if (!t.nextDue || !isISO(t.nextDue)) continue;
+ useEffect(() => {
+  if (!tasksCol || !tasks.length) return;
 
-      if (t.repeat === "monthly-nth" && t.repeatWeekday != null && t.repeatNth != null) {
-        const aligned = alignMonthlyNthISO(t.nextDue, Number(t.repeatWeekday), Number(t.repeatNth));
-        if (aligned !== t.nextDue) {
-          updates.push({
-            id: t.id,
-            patch: { nextDue: aligned, endDate: isMultiDay(t) && t.endDate < aligned ? aligned : t.endDate },
-          });
-        }
-      }
+  const updates = [];
+  for (const t of tasks) {
+    if (!t.nextDue || !isISO(t.nextDue)) continue;
 
-      if (t.repeat === "weekly" && t.repeatWeekday != null) {
-        const aligned = toISO(nextOnOrAfterWeekday(t.nextDue, Number(t.repeatWeekday)));
-        if (aligned !== t.nextDue) {
-          updates.push({
-            id: t.id,
-            patch: { nextDue: aligned, endDate: isMultiDay(t) && t.endDate < aligned ? aligned : t.endDate },
-          });
-        }
+    if (t.repeat === "monthly-nth" && t.repeatWeekday != null && t.repeatNth != null) {
+      const aligned = alignMonthlyNthISO(t.nextDue, Number(t.repeatWeekday), Number(t.repeatNth));
+      const patch = {};
+      if (aligned !== t.nextDue) patch.nextDue = aligned;
+      if (isMultiDay(t) && t.endDate && t.endDate < aligned) patch.endDate = aligned;
+      if (Object.keys(patch).length) updates.push({ id: t.id, patch });
+    }
+
+    if (t.repeat === "weekly" && t.repeatWeekday != null) {
+      const aligned = toISO(nextOnOrAfterWeekday(t.nextDue, Number(t.repeatWeekday)));
+      if (aligned !== t.nextDue) {
+        const patch = { nextDue: aligned };
+        if (isMultiDay(t) && t.endDate && t.endDate < aligned) patch.endDate = aligned;
+        updates.push({ id: t.id, patch });
       }
     }
-    updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
-  }, [tasksCol, tasks]);
+  }
+
+  updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
+}, [tasksCol, tasks]);
 
   /* ---------- Writes ---------- */
   async function upsertTask(task) {
