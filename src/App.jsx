@@ -1277,19 +1277,24 @@ function TaskModal({ open, onClose, task, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-300">Start date</label>
-                <input
-                  type="date"
-                  value={data.nextDue}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setData(d => ({
-                      ...d,
-                      nextDue: v,
-                      endDate: (d.endDate && d.endDate < v) ? v : (d.endDate || v),
-                    }));
-                  }}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                />
+            <input
+              type="date"
+              value={data.nextDue}
+              onChange={(e) => {
+                const v = e.target.value;
+                setData(d => {
+                  let end = d.endDate || v;
+                  if (end < v) end = v; // never before start
+                  // if multi-day, make sure end stays at least +1 day past start
+                  if (isMultiDay(d) && end === v) {
+                    end = toISO(addDays(new Date(v), 1));
+                  }
+                  return { ...d, nextDue: v, endDate: end };
+                });
+              }}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            />
+
               </div>
               <div>
                 <label className="text-xs text-slate-300">Time</label>
@@ -1302,22 +1307,25 @@ function TaskModal({ open, onClose, task, onSave }) {
               </div>
             </div>
 
-            {/* Multi-day toggle + end date */}
+            {/* Multi-day toggle */}
             <label className="mt-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={isMultiDay(data)}
                 onChange={(e) => {
                   const on = e.target.checked;
-                  setData(d => ({
-                    ...d,
-                    endDate: on ? (d.endDate || d.nextDue) : d.nextDue,
-                  }));
+                  setData(d => {
+                    if (!on) return { ...d, endDate: d.nextDue }; // collapse to single day
+                    const curEnd = d.endDate || d.nextDue;
+                    const needsBump = curEnd <= d.nextDue;        // ensure at least +1 day
+                    const bumped = toISO(addDays(new Date(d.nextDue), 1));
+                    return { ...d, endDate: needsBump ? bumped : curEnd };
+                  });
                 }}
               />
               Spans multiple days
             </label>
-
+            
             {isMultiDay(data) && (
               <div className="mt-2">
                 <label className="text-xs text-slate-300">End date</label>
