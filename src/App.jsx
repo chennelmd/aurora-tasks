@@ -100,6 +100,41 @@ const formatDateShort = (dateish) => {
 
 /* ---- THEME helpers ---- */
 const defaultTheme = { from: "#0b1220", via: "#1b2450", to: "#0ea5e9", accent: "#38bdf8" };
+
+
+// Flat Theme tokens for light/dark (no gradients)
+const FLAT_TOKENS = {
+  light: {
+    base: "#F6F7FB",
+    surface: "#FFFFFF",
+    subsurface: "#F9FAFD",
+    border: "#E7EBF1",
+    text: "#0B1220",
+    meta: "#6B7280",
+    countBg: "#EFF2F7",
+  },
+  dark: {
+    base: "#1B2230",
+    surface: "#242B39",
+    subsurface: "#2A3140",
+    border: "#2D3545",
+    text: "#E6EAF2",
+    meta: "#A9B1C3",
+    countBg: "#303747",
+  }
+};
+
+function applyThemeTokens(isDark) {
+  const t = isDark ? FLAT_TOKENS.dark : FLAT_TOKENS.light;
+  const root = document.documentElement;
+  root.style.setProperty("--base", t.base);
+  root.style.setProperty("--surface", t.surface);
+  root.style.setProperty("--subsurface", t.subsurface);
+  root.style.setProperty("--border", t.border);
+  root.style.setProperty("--text", t.text);
+  root.style.setProperty("--meta", t.meta);
+  root.style.setProperty("--count-bg", t.countBg);
+}
 function getContrastText(hex) {
   let c = (hex || "#000").replace("#", "");
   if (c.length === 3) c = c.split("").map(x => x + x).join("");
@@ -632,14 +667,15 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen text-slate-100 dark:text-slate-100"
-      style={{ background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))" }}
+      className="min-h-screen"
+      style={{ background: "var(--base)", color: "var(--text)" }}
     >
-      <AuroraBackground />
+
       <audio ref={audioRef} src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA//////////////////////////////8AAABJTE5B" preload="auto" />
       <Toaster richColors position="top-right" />
 
-      <header className="sticky top-0 z-40 backdrop-blur bg-black/10 border-b border-white/10">
+      <header className="sticky top-0 z-40 border-b shadow-md"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <KanbanSquare className="w-6 h-6 text-sky-300" />
           <h1 className="text-xl font-semibold tracking-tight">Aurora Tasks</h1>
@@ -659,7 +695,8 @@ export default function App() {
             {/* Light/Dark toggle */}
             <button
               onClick={() => setPrefs((p) => ({ ...p, theme: p.theme === "dark" ? "light" : p.theme === "light" ? "auto" : "dark" }))}
-              className="p-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
+              className="p-2 rounded-xl border hover:opacity-90"
+              style={{ background: "var(--subsurface)", borderColor: "var(--border)" }}
               title="Theme mode"
             >
               {prefs.theme === "dark" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
@@ -668,7 +705,8 @@ export default function App() {
             {/* Theme colors modal button */}
             <button
               onClick={() => setShowThemeModal(true)}
-              className="p-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
+              className="p-2 rounded-xl border hover:opacity-90"
+              style={{ background: "var(--subsurface)", borderColor: "var(--border)" }}
               title="Theme colors"
             >
               <Palette className="w-5 h-5" />
@@ -677,8 +715,8 @@ export default function App() {
             {/* New task */}
             <button
               onClick={() => setShowTaskModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg"
-              style={{ background: "var(--accent)", color: "var(--accent-text)", boxShadow: "0 10px 25px rgba(0,0,0,0.25)" }}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl shadow-sm"
+              style={{ background: "var(--accent)", color: "var(--accent-text)" }}
             >
               <Plus className="w-4 h-4" /> New
             </button>
@@ -875,15 +913,14 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {Object.keys(columnMeta).map((key) => (
-          <div key={key} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 overflow-visible">
+          <div key={key} className="rounded-2xl border p-3 overflow-visible shadow-sm"
+            style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
             <div className="flex items-center justify-between px-1 pb-2">
               <div>
-                <div className="text-sm text-slate-300">{columnMeta[key].hint}</div>
+                <div className="text-sm" style={{ color: "var(--meta)" }}>{columnMeta[key].hint}</div>
                 <div className="font-semibold flex items-center gap-2">
-                  <span className={`bg-gradient-to-r text-transparent bg-clip-text ${columnMeta[key].color}`}>
-                    {columnMeta[key].title}
-                  </span>
-                  <span className="text-xs text-slate-400">{columns[key].length}</span>
+                  <span className="">{columnMeta[key].title}</span>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-md" style={{ background: "var(--count-bg)", color: "var(--meta)" }}>{columns[key].length}</span>
                 </div>
               </div>
             </div>
@@ -910,7 +947,7 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: 0.15 }}
                                   layout={false}
-                                  className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-3 shadow-lg"
+                                  className="group rounded-2xl border p-3 shadow-sm hover:shadow-md transition"
                                 >
                                   <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
                                 </motion.div>
@@ -1103,19 +1140,22 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
           const isToday = (d) => isSameDay(d, new Date());
 
           return (
-            <div key={wi} className="rounded-xl border border-white/10 bg-white/5 p-2">
+            <div key={wi} className="rounded-xl border p-2"
+            style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
               {/* Day cells row */}
               <div className="grid grid-cols-7 gap-2">
                 {weekDays.map((d) => (
                   <div
                     key={d.toISOString()}
                     className={classNames(
-                      "min-h-[60px] rounded-lg border p-2",
-                      "border-white/10 bg-white/5",
-                      !isCurrentMonth(d) && "opacity-40"
+                      "min-h-[64px] rounded-lg border p-2",
+                      "",
+                      !isCurrentMonth(d) && "opacity-50"
                     )}
+                    style={{ background: "var(--subsurface)", borderColor: isToday(d) ? "var(--accent)" : "var(--border)" }}
                   >
-                    <div className={classNames("text-sm", isToday(d) && "font-semibold text-sky-300")}>
+                    <div className={classNames("inline-flex items-center justify-center w-7 h-7 rounded-full text-sm")}
+                      style={isToday(d) ? { background: "var(--accent)", color: "var(--accent-text)" } : {}}>
                       {d.getDate()}
                     </div>
                   </div>
@@ -1715,25 +1755,7 @@ function TagPicker({ available = [], value = [], onChange }) {
 }
 
 /* ---------- Visuals & other modals ---------- */
-function AuroraBackground() {
-  return (
-    <div className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute -top-1/3 left-0 right-0 h-[60vh] blur-3xl"
-           style={{ background: "linear-gradient(180deg, var(--bg-from), transparent)" }} />
-      <div className="absolute bottom-0 left-0 right-0 h-[50vh] blur-3xl"
-           style={{ background: "linear-gradient(0deg, var(--bg-to), transparent)" }} />
-      <svg className="absolute inset-0 w-full h-full opacity-30">
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="40" result="coloredBlur" />
-          <feMerge>
-            <feMergeNode in="coloredBlur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </svg>
-    </div>
-  );
-}
+function AuroraBackground() { return null; }
 
 function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, onClose, onSubmit }) {
   if (!open) return null;
