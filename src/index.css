@@ -2,11 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --ring: 56 189 248; }
+:root {
+  /* Font stack (includes color emoji) */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 
+  /* ---- Flat theme fallbacks (DARK by default) ---- */
+  --base:        #1B2230;
+  --surface:     #242B39;
+  --subsurface:  #2A3140;
+  --border:      #2D3545;
+  --rule:        #2C3240;
+  --text:        #E6EAF2;
+  --meta:        #A9B1C3;
+  --count-bg:    #303747;
+  --accent:      #38BDF8;
+  --accent-text: #020617; /* very dark text on the cyan */
+  --ring:        56 189 248; /* tailwind ring color triplet */
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Light-mode fallbacks (used if your app chooses light/auto) */
+    --base:        #F6F7FB;
+    --surface:     #FFFFFF;
+    --subsurface:  #F9FAFD;
+    --border:      #E7EBF1;
+    --rule:        #E5E8EE;
+    --text:        #0B1220;
+    --meta:        #6B7280;
+    --count-bg:    #EFF2F7;
+    --accent:      #38BDF8;
+    --accent-text: #020617;
+  }
+}
+
+/* Apply font & default colors (nice first paint before React mounts) */
+html, body {
+  font-family: var(--font-sans);
+  background: var(--base);
+  color: var(--text);
+  color-scheme: dark; /* keep if you want dark by default; use `light dark` for auto */
+}
+
+/* Optional: scrollbar theming */
 * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.4) transparent; }
 *::-webkit-scrollbar { height: 8px; width: 8px; }
 *::-webkit-scrollbar-thumb { background: rgba(148,163,184,.4); border-radius: 999px; }
 *::-webkit-scrollbar-track { background: transparent; }
-
-html, body { color-scheme: dark; }

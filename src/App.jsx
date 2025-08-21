@@ -1309,7 +1309,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
+        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="font-semibold">{task ? "Edit task" : "New task"}</div>
@@ -1794,7 +1794,7 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
+        className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-md rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="font-semibold">
@@ -1857,7 +1857,7 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-lg rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur p-4"
+        className="absolute left-1/2 top-16 -translate-x-1/2 w-[95vw] max-w-lg rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="font-semibold flex items-center gap-2">
