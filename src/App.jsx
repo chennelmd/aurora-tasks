@@ -1454,37 +1454,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </div>
         )}
 
-        {/* Reminders */}
-        <div className="mt-3">
-          <label className="text-xs font-medium text-slate-200">Reminders</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {(data.remindBefore || []).map((m) => (
-              <button
-                key={m}
-                onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
-                className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10"
-              >
-                {m} min ✕
-              </button>
-            ))}
-            {[5, 10, 15, 30, 60, 120].map((m) => (
-              <button
-                key={m}
-                onClick={() =>
-                  setData((d) => ({
-                    ...d,
-                    remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a, b) => a - b),
-                  }))
-                }
-                className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                +{m}m
-              </button>
-            ))}
-          </div>
-        </div>
-
-      {/* Recurring */}
+     // ------------------------- Recurring ---------------------------
         <div className="mt-3 space-y-2">
           <label className="text-xs font-medium text-slate-200">Recurring</label>
           <div className="grid grid-cols-2 gap-2">
@@ -1534,7 +1504,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             />
           </div>
 
-          {/* Weekly weekday picker */}
+          // ---------------------- Weekly weekday picker -----------------------------
           {data.repeat === "weekly" && (
             <div className="grid grid-cols-2 gap-2">
               <select
@@ -1615,7 +1585,38 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             </div>
           )}
         </div>
-        {/* Auto/Manual toggle + preview */}
+          
+        // -------------------------- Reminders -----------------------
+        <div className="mt-3">
+          <label className="text-xs font-medium text-slate-200">Reminders</label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(data.remindBefore || []).map((m) => (
+              <button
+                key={m}
+                onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
+                className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10"
+              >
+                {m} min ✕
+              </button>
+            ))}
+            {[5, 10, 15, 30, 60, 120].map((m) => (
+              <button
+                key={m}
+                onClick={() =>
+                  setData((d) => ({
+                    ...d,
+                    remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a, b) => a - b),
+                  }))
+                }
+                className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
+              >
+                +{m}m
+              </button>
+            ))}
+          </div>
+        </div>
+          
+        // ------------------------------------- Auto/Manual toggle + preview ----------------------------------
         <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
           <span className="text-xs font-medium text-slate-200">Auto place by due date</span>
           <button
@@ -1635,7 +1636,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
           </div>
         )}
-        {/* Quick actions */}
+        // ------------------------ Quick actions -----------------------------------
         <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <div className="text-xs font-medium text-slate-200 mb-2">Quick actions</div>
           <div className="flex flex-wrap gap-2">
@@ -1663,7 +1664,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           )}
         </div>
       </div>
-      {/* Tags */}
+      // ----------------- Tags ---------------------
         <div className="mt-3">
           <label className="text-xs font-medium text-slate-200">Tags</label>
           <TagPicker
