@@ -267,7 +267,6 @@ const SAMPLE_TASKS = [
 
 {/* ---------------------- App ---------------------- */}
 export default function App() {
-  // Auth
   const [user, setUser] = useState(null);
   useEffect(() => {
     signInAnon().catch(console.error);
