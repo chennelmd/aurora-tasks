@@ -1635,7 +1635,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </button>
         </div>
         {isAuto && (
-          <div className="text-[11px] -mt-1 text-slate-300/90">
+          <div className="text-[11px] -mt-1" style={{ color: "var(--label-subtle)" }}>
             Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
           </div>
         )}
