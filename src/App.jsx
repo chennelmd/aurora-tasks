@@ -761,7 +761,7 @@ export default function App() {
               />
             </div>
 
-            {{/* Light/Dark toggle */}}
+            {/* Light/Dark toggle */}
             <button
               onClick={() => setPrefs((p) => ({ ...p, theme: p.theme === "dark" ? "light" : p.theme === "light" ? "auto" : "dark" }))}
               className="p-2 rounded-xl border hover:opacity-90"
@@ -771,7 +771,7 @@ export default function App() {
               {prefs.theme === "dark" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
 
-            {{/* Theme colors modal button */}}
+            {/* Theme colors modal button */}
             <button
               onClick={() => setShowThemeModal(true)}
               className="p-2 rounded-xl border hover:opacity-90"
@@ -781,7 +781,7 @@ export default function App() {
               <Palette className="w-5 h-5" />
             </button>
 
-            {{/* New task */}}
+            {/* New task */}
             <button
               onClick={() => setShowTaskModal(true)}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl shadow-sm"
@@ -865,7 +865,7 @@ export default function App() {
         )}
       </main>
 
-      {{/* Modals */}}
+      {/* Modals */}
       <TaskModal
         open={showTaskModal}
         onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
@@ -1421,7 +1421,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
         </div>
 
         <div className="flex-1 overflow-auto space-y-4 pr-1">
-          {{/* Title */}}
+          {/* Title */}
           <div className="space-y-1">
             <label className="text-xs text-slate-300">Title</label>
             <div className="relative flex items-center gap-2">
@@ -1441,7 +1441,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           </div>
 
-          {{/* Notes */}}
+          {/* Notes */}
           <div className="space-y-1 mt-3">
             <label className="text-xs text-slate-300">Notes</label>
             <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
@@ -1454,7 +1454,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </motion.div>
           </div>
 
-          {{/* Auto/Manual toggle + preview */}}
+          {/* Auto/Manual toggle + preview */}
           <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
             <span className="text-xs text-slate-300">Auto place by due date</span>
             <button
@@ -1475,7 +1475,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           )}
 
-          {{/* Status + priority */}}
+          {/* Status + priority */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-slate-300">Status</label>
@@ -1505,7 +1505,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           </div>
 
-          {{/* Date + time */}}
+          {/* Date + time */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-slate-300">Start date</label>
@@ -1536,7 +1536,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           </div>
 
-          {{/* Multi-day toggle + end date */}}
+          {/* Multi-day toggle + end date */}
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -1571,7 +1571,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           )}
 
-          {{/* Reminders */}}
+          {/* Reminders */}
           <div className="mt-3">
             <label className="text-xs text-slate-300">Reminders</label>
             <div className="mt-1 flex flex-wrap gap-2">
@@ -1601,7 +1601,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           </div>
 
-          {{/* Tags */}}
+          {/* Tags */}
           <div className="mt-3">
             <label className="text-xs text-slate-300">Tags</label>
             <TagPicker
@@ -1619,7 +1619,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             />
           </div>
 
-          {{/* Primary tag (card color) */}}
+          {/* Primary tag (card color) */}
           {(data.tags || []).length > 0 && (
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
@@ -1635,7 +1635,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             </div>
           )}
 
-          {{/* Recurring */}}
+          {/* Recurring */}
           <div className="mt-3 space-y-2">
             <label className="text-xs text-slate-300">Recurring</label>
             <div className="grid grid-cols-2 gap-2">
@@ -1685,7 +1685,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
               />
             </div>
 
-            {{/* Weekly weekday picker */}}
+            {/* Weekly weekday picker */}
             {data.repeat === "weekly" && (
               <div className="grid grid-cols-2 gap-2">
                 <select
@@ -1715,7 +1715,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
               </div>
             )}
 
-            {{/* Monthly (nth weekday) pickers */}}
+            {/* Monthly (nth weekday) pickers */}
             {data.repeat === "monthly-nth" && (
               <div className="grid grid-cols-2 gap-2">
                 <select
@@ -1767,7 +1767,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
             )}
           </div>
 
-          {{/* Quick actions */}}
+          {/* Quick actions */}
           <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-xs text-slate-300 mb-2">Quick actions</div>
             <div className="flex flex-wrap gap-2">
@@ -1796,7 +1796,7 @@ function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor
           </div>
         </div>
 
-        {{/* Actions (sticky footer) */}}
+        {/* Actions (sticky footer) */}
         <div
           className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
@@ -1843,7 +1843,7 @@ function TagPicker({ available = [], value = [], onChange, prefs, onEditTagColor
 
   return (
     <div className="mt-1">
-      {{/* Selected chips */}}
+      {/* Selected chips */}
       <div className="flex flex-wrap gap-2 mb-2">
         {selected.map((t) => (
           <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
@@ -1873,7 +1873,7 @@ function TagPicker({ available = [], value = [], onChange, prefs, onEditTagColor
         ))}
       </div>
 
-      {{/* Input */}}
+      {/* Input */}
       <div className="relative">
         <input
           value={input}
@@ -1888,7 +1888,7 @@ function TagPicker({ available = [], value = [], onChange, prefs, onEditTagColor
           className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
         />
 
-        {{/* Suggestions dropdown */}}
+        {/* Suggestions dropdown */}
         {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
           <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
             {suggestions.map((s) => (
