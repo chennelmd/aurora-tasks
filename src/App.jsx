@@ -1503,17 +1503,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </div>
         </div>
 
-        {/* Tags */}
-        <div className="mt-3">
-          <label className="text-xs text-slate-300">Tags</label>
-          <TagPicker
-            available={allTags}
-            value={data.tags || []}
-            onChange={(next) => setData((d) => ({ ...d, tags: next }))}
-          />
-        </div>
-
-        {/* Recurring */}
+      {/* Recurring */}
         <div className="mt-3 space-y-2">
           <label className="text-xs text-slate-300">Recurring</label>
           <div className="grid grid-cols-2 gap-2">
@@ -1673,6 +1663,16 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           )}
         </div>
       </div>
+      {/* Tags */}
+        <div className="mt-3">
+          <label className="text-xs text-slate-300">Tags</label>
+          <TagPicker
+            available={allTags}
+            value={data.tags || []}
+            onChange={(next) => setData((d) => ({ ...d, tags: next }))}
+          />
+        </div> 
+        
       {/* Actions (sticky footer) */}
       <div
         className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
@@ -1699,95 +1699,120 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
 
 // ---------- Tag Picker ----------
-function TagPicker({ available = [], value = [], onChange }) {
+// ---------- Tag Picker (type-ahead) ----------
+function TagPicker({ available = [], value = [], onChange, placeholder = "Add or select tag…" }) {
   const [input, setInput] = React.useState("");
-  const normalized = React.useMemo(
-    () => Array.from(new Set(available.map((t) => String(t).trim()).filter(Boolean))).sort(),
-    [available]
-  );
+
+  // Map available tags to a unique, case-insensitive set but keep first-seen casing
+  const availEntries = React.useMemo(() => {
+    const m = new Map(); // low -> display
+    for (const raw of available) {
+      if (!raw) continue;
+      const txt = String(raw).trim();
+      if (!txt) continue;
+      const low = txt.toLowerCase();
+      if (!m.has(low)) m.set(low, txt);
+    }
+    return Array.from(m.entries()); // [ [low, display], ... ]
+  }, [available]);
+
   const selected = value;
-  const lower = input.toLowerCase();
+  const selectedLow = React.useMemo(() => new Set(selected.map(t => String(t).toLowerCase())), [selected]);
+  const q = input.trim().toLowerCase();
 
-  const suggestions = React.useMemo(
-    () =>
-      normalized
-        .filter((t) => !selected.includes(t))
-        .filter((t) => (lower ? t.toLowerCase().includes(lower) : true))
-        .slice(0, 8),
-    [normalized, selected, lower]
-  );
+  // Suggestions: only while typing, ranked startsWith > includes, deduped, top 6
+  const suggestions = React.useMemo(() => {
+    if (!q) return [];
+    const starts = [];
+    const contains = [];
+    for (const [low, display] of availEntries) {
+      if (selectedLow.has(low)) continue;
+      if (low.startsWith(q)) starts.push(display);
+      else if (low.includes(q)) contains.push(display);
+    }
+    return [...starts, ...contains].slice(0, 6);
+  }, [availEntries, selectedLow, q]);
 
-  const add = (tag) => {
-    const clean = (tag || "").trim();
-    if (!clean) return;
-    onChange(Array.from(new Set([...selected, clean])));
+  const add = (raw) => {
+    const s = (raw || input).trim();
+    if (!s) return;
+    // if the typed string matches an existing tag (any case), keep the canonical casing
+    const match = availEntries.find(([low]) => low === s.toLowerCase());
+    const candidate = match ? match[1] : s;
+    const next = Array.from(new Set([...selected, candidate]));
+    onChange(next);
     setInput("");
   };
 
-  const remove = (tag) => onChange(selected.filter((t) => t !== tag));
+  const remove = (tag) => onChange(selected.filter(t => t !== tag));
 
-                return (
-                  <div className="mt-1">
-                    {/* Selected chips */}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {selected.map((t) => (
-                        <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
-                          #{t}
-                          <button
-                            type="button"
-                            className="ml-1 opacity-60 hover:opacity-100"
-                            onClick={() => remove(t)}
-                            aria-label={`Remove ${t}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-              
-                    {/* Input */}
-                    <div className="relative">
-                      <input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            add(input);
-                          }
-                        }}
-                        placeholder="Add or select tag…"
-                        className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                      />
-              
-                      {/* Suggestions dropdown */}
-                      {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
-                        <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
-                          {suggestions.map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
-                              onClick={() => add(s)}
-                            >
-                              #{s}
-                            </button>
-                          ))}
-                          {input && !normalized.includes(input) && (
-                            <button
-                              type="button"
-                              className="mt-1 w-full text-left px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30"
-                              onClick={() => add(input)}
-                            >
-                              Add “{input}”
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
+  return (
+    <div className="mt-1">
+      {/* Selected chips */}
+      <div className="flex flex-wrap gap-2 mb-2">
+        {selected.map((t) => (
+          <span
+            key={t}
+            className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1"
+            title={`Tag: ${t}`}
+          >
+            #{t}
+            <button
+              type="button"
+              className="ml-1 opacity-60 hover:opacity-100"
+              onClick={() => remove(t)}
+              aria-label={`Remove ${t}`}
+              title="Remove"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {/* Input + suggestions (only while typing) */}
+      <div className="relative">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(suggestions[0] || input);
+            } else if (e.key === "Tab" && q && suggestions.length) {
+              // accept first suggestion on Tab
+              e.preventDefault();
+              add(suggestions[0]);
+            } else if (e.key === "Backspace" && !input && selected.length) {
+              // delete last chip when input empty
+              remove(selected[selected.length - 1]);
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+          aria-autocomplete="list"
+          aria-expanded={q && suggestions.length > 0 ? true : false}
+        />
+
+        {q && suggestions.length > 0 && (
+          <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2 max-h-56 overflow-auto">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
+                onClick={() => add(s)}
+              >
+                #{s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 {/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
 
