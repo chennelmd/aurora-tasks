@@ -1,5 +1,4 @@
 // src/App.jsx
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { motion } from "framer-motion";
@@ -51,7 +50,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-{/* ---------------------- utils ---------------------- */}
+/* ---------------------- utils ---------------------- */
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
@@ -68,7 +67,7 @@ const parseTimeToDate = (iso, hhmm) => {
   return new Date(y, m - 1, d, h, min, 0, 0);
 };
 
-  {/* --- timezone-safe plain date helpers (no UTC drift) --- */}
+/* --- timezone-safe plain date helpers (no UTC drift) --- */
 const fromISO = (iso) => {
   if (!iso) return new Date(NaN);
   const [y, m, d] = iso.split("-").map(Number);
@@ -82,28 +81,44 @@ const toISO = (d) => {
 };
 const todayISO = () => toISO(new Date());
 
-    {/* ---- sorting helpers ---- */}
-function taskDueDate(t) {
-  if (!t.nextDue) return null;
-  const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
-  return parseTimeToDate(t.nextDue, hhmm);
+/* ---- color helpers for tag-driven cards ---- */
+function hexToRgb(hex) {
+  let c = (hex || "").replace("#", "");
+  if (!c) return null;
+  if (c.length === 3) c = c.split("").map(x => x + x).join("");
+  const r = parseInt(c.slice(0,2), 16);
+  const g = parseInt(c.slice(2,4), 16);
+  const b = parseInt(c.slice(4,6), 16);
+  if ([r,g,b].some(Number.isNaN)) return null;
+  return { r, g, b };
 }
-function sortByDue(a, b) {
-  const da = taskDueDate(a);
-  const db = taskDueDate(b);
-  if (da && db) return da - db;
-  if (da) return -1;
-  if (db) return 1;
-  return (a.createdAt || "").localeCompare(b.createdAt || "");
+function rgba(hex, a) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
 }
-const formatDateShort = (dateish) => {
-  const d = typeof dateish === "string" ? fromISO(dateish) : dateish;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
+function lighten(hex, pct = 0.2) {
+  const rgb = hexToRgb(hex); if (!rgb) return hex;
+  const f = (x)=>Math.round(x + (255 - x) * pct);
+  return `rgb(${f(rgb.r)}, ${f(rgb.g)}, ${f(rgb.b)})`;
+}
+function darken(hex, pct = 0.2) {
+  const rgb = hexToRgb(hex); if (!rgb) return hex;
+  const f = (x)=>Math.round(x * (1 - pct));
+  return `rgb(${f(rgb.r)}, ${f(rgb.g)}, ${f(rgb.b)})`;
+}
 
-{/* ---- THEME helpers ---- */}
+/* ---- text contrast helper ---- */
+function getContrastText(hex) {
+  let c = (hex || "#000").replace("#", "");
+  if (c.length === 3) c = c.split("").map(x => x + x).join("");
+  const r = parseInt(c.slice(0,2), 16), g = parseInt(c.slice(2,4), 16), b = parseInt(c.slice(4,6), 16);
+  const yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 150 ? "#000000" : "#ffffff";
+}
+
+/* ---- THEME helpers ---- */
 const defaultTheme = { from: "#0b1220", via: "#1b2450", to: "#0ea5e9", accent: "#38bdf8" };
-
 
 // Flat Theme tokens for light/dark (no gradients)
 const FLAT_TOKENS = {
@@ -127,29 +142,7 @@ const FLAT_TOKENS = {
   }
 };
 
-function applyThemeTokens(isDark) {
-  const t = isDark ? FLAT_TOKENS.dark : FLAT_TOKENS.light;
-  const root = document.documentElement;
-  root.style.setProperty("--base", t.base);
-  root.style.setProperty("--surface", t.surface);
-  root.style.setProperty("--subsurface", t.subsurface);
-  root.style.setProperty("--border", t.border);
-  root.style.setProperty("--text", t.text);
-  root.style.setProperty("--meta", t.meta);
-  root.style.setProperty("--count-bg", t.countBg);
-  root.style.setProperty("--label", isDark ? "#E6EAF2" : "#334155");     // strong label
-  root.style.setProperty("--label-subtle", isDark ? "#B9C2D3" : "#475569"); // optional
-
-}
-function getContrastText(hex) {
-  let c = (hex || "#000").replace("#", "");
-  if (c.length === 3) c = c.split("").map(x => x + x).join("");
-  const r = parseInt(c.slice(0,2), 16), g = parseInt(c.slice(2,4), 16), b = parseInt(c.slice(4,6), 16);
-  const yiq = (r*299 + g*587 + b*114) / 1000;
-  return yiq >= 150 ? "#000000" : "#ffffff";
-}
-
-{/* ---- extra date helpers (nth weekday etc.) ---- */}
+/* ---- extra date helpers (nth weekday etc.) ---- */
 const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 const nextOnOrAfterWeekday = (dateish, weekday) => {
   const d = typeof dateish === "string" ? fromISO(dateish) : new Date(dateish.valueOf());
@@ -158,7 +151,7 @@ const nextOnOrAfterWeekday = (dateish, weekday) => {
   return d;
 };
 function nthWeekdayOfMonth(y, m, weekday, ordinal) {
-  const make = (Y, M, day) => new Date(Y, M, day, 12, 0, 0, 0); // always noon
+  const make = (Y, M, day) => new Date(Y, M, day, 12, 0, 0, 0); // noon
 
   if (ordinal === -1) {
     const last = new Date(y, m + 1, 0);
@@ -203,7 +196,7 @@ function alignMonthlyNthISO(baseISO, weekday, ordinal) {
   return candStr;
 }
 
-{/* ---- range helpers for multi-day tasks ---- */}
+/* ---- range helpers for multi-day tasks ---- */
 const isMultiDay = (t) => !!t.nextDue && !!t.endDate && t.endDate !== t.nextDue;
 function eachDateInRange(startISO, endISO) {
   if (!startISO) return [];
@@ -232,7 +225,7 @@ function formatRangeShort(startISO, endISO) {
   return `${sStr}–${eStr}`;
 }
 
-{/* ---------- Auto-placement helpers ---------- */}
+/* ---------- Auto-placement helpers ---------- */
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 function computeAutoStatus(task, now = new Date()) {
   if (task.status === "done") return "done";
@@ -256,7 +249,7 @@ function effectiveStatus(task) {
   return mode === "manual" ? (task.status || "today") : computeAutoStatus(task);
 }
 
-{/* ---------- Sample data ---------- */}
+/* ---------- Sample data ---------- */
 const SAMPLE_TASKS = [
   { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), endDate: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
   { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), endDate: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
@@ -264,7 +257,7 @@ const SAMPLE_TASKS = [
   { id: uid(), title: "Basement deep clean", notes: "Declutter, mop, shelves", status: "upcoming", priority: "medium", tags: ["home"], nextDue: todayISO(), endDate: toISO(addDays(new Date(), 6)), time: "", remindBefore: [], repeat: "none", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
 ];
 
-{/* ---------------------- App ---------------------- */}
+/* ---------------------- App ---------------------- */
 export default function App() {
   // Auth
   const [user, setUser] = useState(null);
@@ -278,7 +271,15 @@ export default function App() {
 
   // App State
   const [tasks, setTasks] = useState(SAMPLE_TASKS);
-  const [prefs, setPrefs] = useState({ theme: "auto", view: "kanban", showCompleted: true, sound: true, themeColors: { ...defaultTheme } });
+  const [prefs, setPrefs] = useState({
+    theme: "auto",
+    view: "kanban",
+    showCompleted: true,
+    sound: true,
+    themeColors: { ...defaultTheme },
+    themeFinish: "soft",     // "soft" | "glass"
+    tagsPalette: {},         // { [tag]: { color:"#RRGGBB", text?: "#RRGGBB" } }
+  });
 
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
@@ -307,7 +308,6 @@ export default function App() {
     apply(prefs.theme);
   }, [prefs.theme]);
 
-  
   // Apply flat theme tokens
   useEffect(() => {
     const isDark =
@@ -337,7 +337,6 @@ export default function App() {
     root.style.setProperty("--bg-via",  t.base);
     root.style.setProperty("--bg-to",   t.base);
   }, [prefs.theme, prefs.themeColors]);
-
 
   // Firestore listeners & seed
   useEffect(() => {
@@ -418,7 +417,10 @@ export default function App() {
   }
 
   // Filters
-  const allTags = useMemo(() => Array.from(new Set(tasks.flatMap((t) => t.tags || []))).sort(), [tasks]);
+  const allTags = useMemo(
+    () => Array.from(new Set(tasks.flatMap((t) => t.tags || []))).sort(),
+    [tasks]
+  );
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       const q = query.toLowerCase();
@@ -429,7 +431,21 @@ export default function App() {
     });
   }, [tasks, query, tagFilter, priorityFilter]);
 
-  {/* ---------- Columns with 7-day Upcoming + sorting ---------- */}
+  /* ---------- Columns with 7-day Upcoming + sorting ---------- */
+  function taskDueDate(t) {
+    if (!t.nextDue) return null;
+    const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
+    return parseTimeToDate(t.nextDue, hhmm);
+  }
+  function sortByDue(a, b) {
+    const da = taskDueDate(a);
+    const db = taskDueDate(b);
+    if (da && db) return da - db;
+    if (da) return -1;
+    if (db) return 1;
+    return (a.createdAt || "").localeCompare(b.createdAt || "");
+  }
+
   const columns = useMemo(() => {
     const bucket = { today: [], upcoming: [], backlog: [], done: [] };
     for (const t of filteredTasks) {
@@ -443,41 +459,45 @@ export default function App() {
     return bucket;
   }, [filteredTasks]);
 
-  {/* ---------- One-time auto realignment for existing data ---------- */}
- useEffect(() => {
-  if (!tasksCol || !tasks.length) return;
+  /* ---------- One-time auto realignment for existing data ---------- */
+  useEffect(() => {
+    if (!tasksCol || !tasks.length) return;
 
-  const updates = [];
-  for (const t of tasks) {
-    if (!t.nextDue || !isISO(t.nextDue)) continue;
+    const updates = [];
+    for (const t of tasks) {
+      if (!t.nextDue || !isISO(t.nextDue)) continue;
 
-    if (t.repeat === "monthly-nth" && t.repeatWeekday != null && t.repeatNth != null) {
-      const aligned = alignMonthlyNthISO(t.nextDue, Number(t.repeatWeekday), Number(t.repeatNth));
-      const patch = {};
-      if (aligned !== t.nextDue) patch.nextDue = aligned;
-      if (isMultiDay(t) && t.endDate && t.endDate < aligned) patch.endDate = aligned;
-      if (Object.keys(patch).length) updates.push({ id: t.id, patch });
-    }
-
-    if (t.repeat === "weekly" && t.repeatWeekday != null) {
-      const aligned = toISO(nextOnOrAfterWeekday(t.nextDue, Number(t.repeatWeekday)));
-      if (aligned !== t.nextDue) {
-        const patch = { nextDue: aligned };
+      if (t.repeat === "monthly-nth" && t.repeatWeekday != null && t.repeatNth != null) {
+        const aligned = alignMonthlyNthISO(t.nextDue, Number(t.repeatWeekday), Number(t.repeatNth));
+        const patch = {};
+        if (aligned !== t.nextDue) patch.nextDue = aligned;
         if (isMultiDay(t) && t.endDate && t.endDate < aligned) patch.endDate = aligned;
-        updates.push({ id: t.id, patch });
+        if (Object.keys(patch).length) updates.push({ id: t.id, patch });
+      }
+
+      if (t.repeat === "weekly" && t.repeatWeekday != null) {
+        const aligned = toISO(nextOnOrAfterWeekday(t.nextDue, Number(t.repeatWeekday)));
+        if (aligned !== t.nextDue) {
+          const patch = { nextDue: aligned };
+          if (isMultiDay(t) && t.endDate && t.endDate < aligned) patch.endDate = aligned;
+          updates.push({ id: t.id, patch });
+        }
       }
     }
-  }
 
-  updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
-}, [tasksCol, tasks]);
+    updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
+  }, [tasksCol, tasks]);
 
-  {/* ---------- Writes ---------- */}
+  /* ---------- Writes ---------- */
   async function upsertTask(task) {
     if (user && tasksCol) {
       await setDoc(doc(tasksCol, task.id), task, { merge: true });
     } else {
-      setTasks((prev) => (prev.some((p) => p.id === task.id) ? prev.map((p) => (p.id === task.id ? task : p)) : [task, ...prev]));
+      setTasks((prev) =>
+        prev.some((p) => p.id === task.id)
+          ? prev.map((p) => (p.id === task.id ? task : p))
+          : [task, ...prev]
+      );
     }
   }
   async function deleteTask(id) {
@@ -545,7 +565,7 @@ export default function App() {
     }
   }
 
-  {/* ---------- DnD: manual override on drag ---------- */}
+  /* ---------- DnD: manual override on drag ---------- */
   async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
@@ -555,7 +575,7 @@ export default function App() {
     toast("Manual override enabled for this task");
   }
 
-  {/* ---------- Export / Import JSON ---------- */}
+  /* ---------- Export / Import JSON ---------- */
   function exportData() {
     const payload = { tasks, prefs, exportedAt: new Date().toISOString(), version: 1 };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -584,6 +604,21 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  }
+
+  // Tag color editing (prefs.tagsPalette)
+  function setTagColor(tag, patch) {
+    setPrefs((p) => {
+      const next = {
+        ...(p || {}),
+        tagsPalette: {
+          ...(p?.tagsPalette || {}),
+          [tag]: { ...(p?.tagsPalette?.[tag] || {}), ...patch },
+        },
+      };
+      if (prefsDoc) setDoc(prefsDoc, { tagsPalette: next.tagsPalette }, { merge: true });
+      return next;
+    });
   }
 
   // Google sign-in / link / sign-out
@@ -686,7 +721,7 @@ export default function App() {
     toast("Signed out");
   }
 
-  {/* ---------- Calendar state ---------- */}
+  /* ---------- Calendar state ---------- */
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
   const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7)); // Monday grid start
@@ -697,7 +732,6 @@ export default function App() {
       className="min-h-screen"
       style={{ background: "var(--base)", color: "var(--text)" }}
     >
-
       <audio ref={audioRef} src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA//////////////////////////////8AAABJTE5B" preload="auto" />
       <Toaster richColors position="top-right" />
 
@@ -734,7 +768,7 @@ export default function App() {
               onClick={() => setShowThemeModal(true)}
               className="p-2 rounded-xl border hover:opacity-90"
               style={{ background: "var(--subsurface)", borderColor: "var(--border)" }}
-              title="Theme colors"
+              title="Theme settings"
             >
               <Palette className="w-5 h-5" />
             </button>
@@ -830,6 +864,8 @@ export default function App() {
         task={editingTask}
         onSave={(task) => { upsertTask(task); setShowTaskModal(false); setEditingTask(null); }}
         allTags={allTags}
+        prefs={prefs}
+        onEditTagColor={setTagColor}
       />
 
       <EmailAuthModal
@@ -848,7 +884,9 @@ export default function App() {
         open={showThemeModal}
         onClose={() => setShowThemeModal(false)}
         colors={prefs.themeColors || defaultTheme}
+        finish={prefs.themeFinish}
         onChange={(next) => setPrefs((p) => ({ ...p, themeColors: { ...(p.themeColors || {}), ...next } }))}
+        onFinishChange={(val) => setPrefs((p) => ({ ...p, themeFinish: val }))}
         onPreset={(preset) => setPrefs((p) => ({ ...p, themeColors: { ...preset } }))}
       />
 
@@ -865,7 +903,40 @@ export default function App() {
   );
 }
 
-{/* ---------- Portal for dragged cards ---------- */}
+/* ---------- helpers for tag-colored cards ---------- */
+function primaryTagFor(task, prefs) {
+  if (task?.primaryTag && (task?.tags || []).includes(task.primaryTag)) return task.primaryTag;
+  for (const t of (task?.tags || [])) {
+    if (prefs?.tagsPalette?.[t]?.color) return t;
+  }
+  return (task?.tags || [])[0] || null;
+}
+function colorForTag(tag, prefs) {
+  if (!tag) return null;
+  return prefs?.tagsPalette?.[tag]?.color || null;
+}
+function textOverrideForTag(tag, prefs) {
+  if (!tag) return null;
+  return prefs?.tagsPalette?.[tag]?.text || null;
+}
+function cardStyleFromTag(tagColor, finish) {
+  if (!tagColor) return null;
+  if (finish === "glass") {
+    return {
+      background: rgba(tagColor, 0.18),
+      borderColor: rgba(tagColor, 0.35),
+      backdropFilter: "saturate(1.1) blur(6px)",
+      WebkitBackdropFilter: "saturate(1.1) blur(6px)",
+    };
+  }
+  // soft
+  return {
+    background: rgba(tagColor, 0.12),
+    borderColor: rgba(tagColor, 0.28),
+  };
+}
+
+/* ---------- Portal for dragged cards ---------- */
 function DragPortal({ children, isDragging }) {
   const portalRef = React.useRef(null);
   React.useEffect(() => {
@@ -884,7 +955,7 @@ function DragPortal({ children, isDragging }) {
     : children;
 }
 
-{/* ---------- UI pieces ---------- */}
+/* ---------- UI pieces ---------- */
 function ViewToggle({ value, onChange }) {
   const options = [
     { key: "kanban", label: "Kanban", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -983,9 +1054,8 @@ function Kanban({ columns, prefs, onDragEnd, onEdit, onComplete, onDelete }) {
                                   transition={{ duration: 0.15 }}
                                   layout={false}
                                   className="group rounded-2xl border p-3 shadow-sm hover:shadow-md transition"
-                                  style={{ background: "var(--subsurface)", borderColor: "var(--border)" }}
                                 >
-                                  <CardContent t={t} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
+                                  <CardContent t={t} prefs={prefs} onEdit={onEdit} onComplete={onComplete} onDelete={onDelete} />
                                 </motion.div>
                               </div>
                             </DragPortal>
@@ -1029,120 +1099,142 @@ function formatRepeat(t) {
   }
 }
 
-function CardContent({ t, onEdit, onComplete, onDelete }) {
-  return (
-    <>
-      <div className="flex items-start gap-2">
-        <PriorityDot level={t.priority} />
-        <div className="flex-1">
-          <div className="font-medium leading-tight">{t.title}</div>
-          {t.notes && <div className="text-xs text-slate-300/80 mt-1">{t.notes}</div>}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {t.tags?.map((tag) => (
-              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">#{tag}</span>
-            ))}
-            {t.repeat !== "none" && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                <Repeat className="w-3 h-3" /> {formatRepeat(t)}
-              </span>
-            )}
-            {t.time && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                <Clock className="w-3 h-3" /> {t.time}
-              </span>
-            )}
-            {t.nextDue && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                <CalendarIcon className="w-3 h-3" />
-                {formatRangeShort(t.nextDue, t.endDate)}
-              </span>
-            )}
-          </div>
+/* --------- Card content with tag-based styling --------- */
+function CardContent({ t, prefs, onEdit, onComplete, onDelete }) {
+  const tag = primaryTagFor(t, prefs);
+  const tagColor = colorForTag(tag, prefs);
+  const finish = prefs?.themeFinish || "soft";
 
-          {t.checklist?.length ? (
-            <div className="mt-3 bg-black/10 rounded-xl p-2">
-              {t.checklist.map((c) => (
-                <label key={c.id} className="flex items-center gap-2 text-xs py-1">
-                  <input type="checkbox" className="accent-sky-400" checked={c.done}
-                         onChange={() => onEdit({ ...t, _toggleChecklistId: c.id })} />
-                  <span className={classNames(c.done && "line-through text-slate-400")}>{c.text}</span>
-                </label>
+  const baseStyle = { background: "var(--subsurface)", borderColor: "var(--border)" };
+  const themed = cardStyleFromTag(tagColor, finish) || {};
+  const textColor = textOverrideForTag(tag, prefs) || (tagColor ? getContrastText(tagColor) : null);
+
+  return (
+    <div className="contents" style={{ color: textColor || undefined }}>
+      <div
+        className="rounded-2xl border p-3"
+        style={{ ...baseStyle, ...themed }}
+      >
+        <div className="flex items-start gap-2">
+          <PriorityGlyph level={t.priority} />
+          <div className="flex-1">
+            <div className="font-medium leading-tight">{t.title}</div>
+            {t.notes && <div className="text-xs opacity-80 mt-1">{t.notes}</div>}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {t.tags?.map((tg) => (
+                <span key={tg} className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">#{tg}</span>
               ))}
+              {t.repeat !== "none" && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
+                  <Repeat className="w-3 h-3" /> {formatRepeat(t)}
+                </span>
+              )}
+              {t.time && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
+                  <Clock className="w-3 h-3" /> {t.time}
+                </span>
+              )}
+              {t.nextDue && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
+                  <CalendarIcon className="w-3 h-3" />
+                  {formatRangeShort(t.nextDue, t.endDate)}
+                </span>
+              )}
             </div>
-          ) : null}
+
+            {t.checklist?.length ? (
+              <div className="mt-3 bg-black/10 rounded-xl p-2">
+                {t.checklist.map((c) => (
+                  <label key={c.id} className="flex items-center gap-2 text-xs py-1">
+                    <input type="checkbox" className="accent-sky-400" checked={c.done}
+                          onChange={() => onEdit({ ...t, _toggleChecklistId: c.id })} />
+                    <span className={classNames(c.done && "line-through opacity-70")}>{c.text}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <button className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs hover:bg-white/15" onClick={() => onEdit(t)}>Edit</button>
+          <button className="px-2.5 py-1.5 rounded-lg bg-emerald-500/90 text-black text-xs hover:bg-emerald-400 inline-flex items-center gap-1" onClick={() => onComplete(t)}>
+            <CheckCircle2 className="w-3.5 h-3.5" /> Done
+          </button>
+          <button className="ml-auto p-1.5 rounded-lg hover:bg-white/10" onClick={() => onDelete(t.id)}>
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="mt-3 flex items-center gap-2">
-        <button className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs hover:bg-white/15" onClick={() => onEdit(t)}>Edit</button>
-        <button className="px-2.5 py-1.5 rounded-lg bg-emerald-500/90 text-black text-xs hover:bg-emerald-400 inline-flex items-center gap-1" onClick={() => onComplete(t)}>
-          <CheckCircle2 className="w-3.5 h-3.5" /> Done
-        </button>
-        <button className="ml-auto p-1.5 rounded-lg hover:bg-white/10" onClick={() => onDelete(t.id)}>
-          <Trash2 className="w-4 h-4 text-slate-300" />
-        </button>
-      </div>
-    </>
+function PriorityGlyph({ level }) {
+  const map = { low: "●", medium: "◆", high: "▲" };
+  const glyph = map[level] || "●";
+  return (
+    <span
+      className="mt-1 inline-grid place-items-center rounded-full w-5 h-5 text-xs select-none"
+      style={{ background: "var(--count-bg)", color: "var(--text)" }}
+      aria-hidden
+      title={`Priority: ${level || "low"}`}
+    >
+      {glyph}
+    </span>
   );
 }
 
 function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   const isCurrentMonth = (d) => d.getMonth() === calMonth.getMonth();
-  const monIdx = (d) => (d.getDay() + 6) % 7; // Monday=0..Sunday=6
-
-  // Build 6 week starts from the 42-day grid
   const weeks = useMemo(() => Array.from({ length: 6 }, (_, i) => daysArray[i * 7]), [daysArray]);
 
-// For each week, compute bar segments and stack into lanes
-    function computeWeekLanes(weekStart) {
-      const weekStartDate = new Date(weekStart);
-      const weekEndDate   = addDays(weekStartDate, 6);
-    
-      // filter tasks that touch this week
-      const overlapping = tasks.filter((t) => {
-        if (!t.nextDue) return false;
-        const s = fromISO(t.nextDue);                 // noon
-        const e = fromISO(t.endDate || t.nextDue);    // noon
-        return e >= weekStartDate && s <= weekEndDate;
-      });
-    
-      const segs = overlapping.map((t) => {
-        const start = fromISO(t.nextDue);              // noon
-        const end   = fromISO(t.endDate || t.nextDue); // noon
-    
-        // clamp to this week, then normalize to date-noon for accurate day math
-        const rawStart = start < weekStartDate ? weekStartDate : start;
-        const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
-        const segStart = fromISO(toISO(rawStart));
-        const segEnd   = fromISO(toISO(rawEnd));
-    
-        const colStart = (segStart.getDay() + 6) % 7;  // Monday index
-        const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
-        const span = Math.min(7 - colStart, days + 1); // inclusive, no spill to next day
-    
-        const isStart = toISO(segStart) === toISO(start);
-        const isEnd   = toISO(segEnd)   === toISO(end);
-        return { task: t, colStart, span, isStart, isEnd };
-      });
-    
-      // Sort: earlier first, then longer span
-      segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
-    
-      // Greedy lane assignment (avoid overlaps)
-      const lanes = [];
-      for (const seg of segs) {
-        let placed = false;
-        for (const lane of lanes) {
-          const overlaps = lane.some((s) => !(
-            seg.colStart + seg.span - 1 < s.colStart ||
-            s.colStart + s.span - 1 < seg.colStart
-          ));
-          if (!overlaps) { lane.push(seg); placed = true; break; }
-        }
-        if (!placed) lanes.push([seg]);
+  function computeWeekLanes(weekStart) {
+    const weekStartDate = new Date(weekStart);
+    const weekEndDate   = addDays(weekStartDate, 6);
+
+    const overlapping = tasks.filter((t) => {
+      if (!t.nextDue) return false;
+      const s = fromISO(t.nextDue);
+      const e = fromISO(t.endDate || t.nextDue);
+      return e >= weekStartDate && s <= weekEndDate;
+    });
+
+    const segs = overlapping.map((t) => {
+      const start = fromISO(t.nextDue);
+      const end   = fromISO(t.endDate || t.nextDue);
+
+      const rawStart = start < weekStartDate ? weekStartDate : start;
+      const rawEnd   = end   > weekEndDate   ? weekEndDate   : end;
+      const segStart = fromISO(toISO(rawStart));
+      const segEnd   = fromISO(toISO(rawEnd));
+
+      const colStart = (segStart.getDay() + 6) % 7;  // Monday index
+      const days = Math.max(0, Math.floor((segEnd - segStart) / 86400000));
+      const span = Math.min(7 - colStart, days + 1);
+
+      const isStart = toISO(segStart) === toISO(start);
+      const isEnd   = toISO(segEnd)   === toISO(end);
+      return { task: t, colStart, span, isStart, isEnd };
+    });
+
+    segs.sort((a, b) => (a.colStart - b.colStart) || (b.span - a.span));
+
+    const lanes = [];
+    for (const seg of segs) {
+      let placed = false;
+      for (const lane of lanes) {
+        const overlaps = lane.some((s) => !(
+          seg.colStart + seg.span - 1 < s.colStart ||
+          s.colStart + s.span - 1 < seg.colStart
+        ));
+        if (!overlaps) { lane.push(seg); placed = true; break; }
       }
-      return lanes;
+      if (!placed) lanes.push([seg]);
     }
+    return lanes;
+  }
+
   return (
     <div className="rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
       <div className="flex items-center gap-2 mb-3">
@@ -1161,14 +1253,12 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
         </button>
       </div>
 
-      {/* Weekday headers */}
       <div className="grid grid-cols-7 text-xs text-slate-300 mb-1">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d} className="px-2 py-1">{d}</div>
         ))}
       </div>
 
-      {/* 6 weeks */}
       <div className="space-y-3">
         {weeks.map((weekStart, wi) => {
           const weekDays = daysArray.slice(wi * 7, wi * 7 + 7);
@@ -1178,14 +1268,12 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
           return (
             <div key={wi} className="rounded-xl border p-2"
             style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-              {/* Day cells row */}
               <div className="grid grid-cols-7 gap-2">
                 {weekDays.map((d) => (
                   <div
                     key={d.toISOString()}
                     className={classNames(
                       "min-h-[64px] rounded-lg border p-2",
-                      "",
                       !isCurrentMonth(d) && "opacity-50"
                     )}
                     style={{ background: "var(--subsurface)", borderColor: isToday(d) ? "var(--accent)" : "var(--border)" }}
@@ -1198,7 +1286,6 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
                 ))}
               </div>
 
-              {/* Bars lanes */}
               <div className="mt-2 space-y-1">
                 {lanes.map((lane, li) => (
                   <div key={li} className="grid grid-cols-7 gap-2 h-7">
@@ -1237,10 +1324,6 @@ function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   );
 }
 
-function PriorityDot({ level }) {
-  const map = { low: "bg-emerald-400", medium: "bg-amber-400", high: "bg-rose-400" };
-  return <span className={classNames("mt-1 w-2.5 h-2.5 rounded-full", map[level] || "bg-slate-300")} />;
-}
 function ShieldPill({ icon, text }) {
   return (
     <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
@@ -1250,8 +1333,8 @@ function ShieldPill({ icon, text }) {
   );
 }
 
-{/* ---------- Task Modal ---------- */}
-function TaskModal({ open, onClose, task, onSave, allTags }) {
+/* ---------- Task Modal ---------- */
+function TaskModal({ open, onClose, task, onSave, allTags, prefs, onEditTagColor }) {
   const [data, setData] = React.useState(() => emptyTask());
   const titleRef = React.useRef(null);
 
@@ -1283,6 +1366,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       statusMode: "auto",
       priority: "medium",
       tags: [],
+      primaryTag: null,
       nextDue: todayISO(),
       endDate: todayISO(),
       time: "",
@@ -1305,7 +1389,8 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
     if (!data.title.trim()) return toast.error("Please add a title");
     const start = data.nextDue;
     const end = !data.endDate || data.endDate < start ? start : data.endDate;
-    onSave({ ...data, endDate: end });
+    const primary = primaryTagFor(data, prefs); // ensure valid
+    onSave({ ...data, endDate: end, primaryTag: primary });
     toast.success("Task saved");
   };
 
@@ -1326,448 +1411,453 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
         <div className="flex-1 overflow-auto space-y-4 pr-1">
-        {/* Title */}
-        <div className="space-y-1">
-          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Title</label>
-          <div className="relative flex items-center gap-2">
-            <input
-              ref={titleRef}
-              value={data.title || ""}
-              onChange={(e) => setData({ ...data, title: e.target.value })}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-              placeholder="What do you need to do?"
-            />
-            <EmojiPickerButton
-              inputRef={titleRef}
-              theme="dark"
-              className="rounded-lg border px-2 py-1"
-              style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
-            />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-1 mt-3">
-          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Notes</label>
-          <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
-            <textarea
-              value={data.notes || ""}
-              onChange={(e) => setData({ ...data, notes: e.target.value })}
-              placeholder="Details, links, etc."
-              className="w-full min-h-[80px] rounded-xl px-3 py-2 bg-white/10 border border-white/10"
-            />
-          </motion.div>
-        </div>
-
-
-
-        {/* Status + priority */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Status</label>
-            <select
-              value={data.status}
-              onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
-              disabled={isAuto}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
-            >
-              <option value="today">Today</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="backlog">Backlog</option>
-              <option value="done">Completed</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Priority</label>
-            <select
-              value={data.priority}
-              onChange={(e) => setData({ ...data, priority: e.target.value })}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            >
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Date + time */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Start date</label>
-            <input
-              type="date"
-              value={data.nextDue}
-              onChange={(e) => {
-                const v = e.target.value;
-                setData((d) => {
-                  const wasMulti = isMultiDay(d);
-                  let end = d.endDate || v;
-                  if (end < v) end = v;
-                  if (!wasMulti) end = v;
-                  return { ...d, nextDue: v, endDate: end };
-                });
-              }}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            />
-          </div>
-          <div>
-            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Time</label>
-            <input
-              type="time"
-              value={data.time}
-              onChange={(e) => setData({ ...data, time: e.target.value })}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            />
-          </div>
-        </div>
-
-        {/* Multi-day toggle + end date */}
-        <label className="mt-2 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isMultiDay(data)}
-            onChange={(e) => {
-              const on = e.target.checked;
-              setData((d) => {
-                if (!on) return { ...d, endDate: d.nextDue };
-                const curEnd = d.endDate || d.nextDue;
-                const needsBump = curEnd <= d.nextDue;
-                const bumped = toISO(addDays(fromISO(d.nextDue), 1));
-                return { ...d, endDate: needsBump ? bumped : curEnd };
-              });
-            }}
-          />
-          Spans multiple days
-        </label>
-
-        {isMultiDay(data) && (
-          <div className="mt-2">
-            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>End date</label>
-            <input
-              type="date"
-              value={data.endDate}
-              min={data.nextDue}
-              onChange={(e) => {
-                const v = e.target.value;
-                setData((d) => ({ ...d, endDate: v < d.nextDue ? d.nextDue : v }));
-              }}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            />
-          </div>
-        )}
-
-          {/*------------------------- Recurring ---------------------------*/}
-        <div className="mt-3 space-y-2">
-          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Recurring</label>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={data.repeat}
-              onChange={(e) => {
-                const v = e.target.value;
-                setData((d) => {
-                  const wasMulti = isMultiDay(d);
-                  if (v === "weekly") {
-                    const base = d.nextDue || todayISO();
-                    const wd = d.repeatWeekday ?? fromISO(base).getDay();
-                    const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
-                    const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
-                    return { ...d, repeat: v, repeatWeekday: wd, nextDue: alignedISO, endDate: newEnd };
-                  }
-                  if (v === "monthly-nth") {
-                    const base = d.nextDue || todayISO();
-                    const wd = d.repeatWeekday ?? fromISO(base).getDay();
-                    const ord = d.repeatNth ?? 1;
-                    const alignedISO = alignMonthlyNthISO(base, wd, ord);
-                    const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
-                    return { ...d, repeat: v, repeatWeekday: wd, repeatNth: ord, nextDue: alignedISO, endDate: newEnd };
-                  }
-                  const newEnd = wasMulti ? d.endDate : d.nextDue;
-                  return { ...d, repeat: v, endDate: newEnd };
-                });
-              }}
-              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-            >
-              <option value="none">None</option>
-              <option value="daily">Daily</option>
-              <option value="weekdays">Weekdays</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="monthly-nth">Monthly (nth weekday)</option>
-              <option value="custom">Custom (days)</option>
-            </select>
-
-            <input
-              type="number"
-              min={1}
-              value={data.repeatIntervalDays}
-              onChange={(e) => setData({ ...data, repeatIntervalDays: Math.max(1, Math.min(365, Number(e.target.value || 1))) })}
-              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-              placeholder="Every…"
-            />
-          </div>
-
-          {/*---------------------- Weekly weekday picker ----------------------*/}
-          {data.repeat === "weekly" && (
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
-                onChange={(e) => {
-                  const wd = Number(e.target.value);
-                  const iso = toISO(nextOnOrAfterWeekday(data.nextDue || todayISO(), wd));
-                  setData((d) => {
-                    const wasMulti = isMultiDay(d);
-                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
-                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
-                  });
-                }}
-                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-              >
-                <option value={1}>Monday</option>
-                <option value={2}>Tuesday</option>
-                <option value={3}>Wednesday</option>
-                <option value={4}>Thursday</option>
-                <option value={5}>Friday</option>
-                <option value={6}>Saturday</option>
-                <option value={0}>Sunday</option>
-              </select>
-              <div className="self-center text-xs text-slate-400">
-                Repeats every {data.repeatIntervalDays} week(s)
-              </div>
+          {/* Title */}
+          <div className="space-y-1">
+            <label className="text-xs text-slate-300">Title</label>
+            <div className="relative flex items-center gap-2">
+              <input
+                ref={titleRef}
+                value={data.title || ""}
+                onChange={(e) => setData({ ...data, title: e.target.value })}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                placeholder="What do you need to do?"
+              />
+              <EmojiPickerButton
+                inputRef={titleRef}
+                theme="dark"
+                className="rounded-lg border px-2 py-1"
+                style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
+              />
             </div>
-          )}
-
-          {/* Monthly (nth weekday) pickers */}
-          {data.repeat === "monthly-nth" && (
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={data.repeatNth ?? 1}
-                onChange={(e) => {
-                  const ord = Number(e.target.value);
-                  setData((d) => {
-                    const base = d.nextDue || todayISO();
-                    const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
-                    const iso = alignMonthlyNthISO(base, wd, ord);
-                    const wasMulti = isMultiDay(d);
-                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
-                    return { ...d, repeatNth: ord, nextDue: iso, endDate: newEnd };
-                  });
-                }}
-                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-              >
-                <option value={1}>1st</option>
-                <option value={2}>2nd</option>
-                <option value={3}>3rd</option>
-                <option value={4}>4th</option>
-                <option value={-1}>Last</option>
-              </select>
-
-              <select
-                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
-                onChange={(e) => {
-                  const wd = Number(e.target.value);
-                  setData((d) => {
-                    const base = d.nextDue || todayISO();
-                    const ord = Number(d.repeatNth ?? 1);
-                    const iso = alignMonthlyNthISO(base, wd, ord);
-                    const wasMulti = isMultiDay(d);
-                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
-                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
-                  });
-                }}
-                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-              >
-                <option value={1}>Monday</option>
-                <option value={2}>Tuesday</option>
-                <option value={3}>Wednesday</option>
-                <option value={4}>Thursday</option>
-                <option value={5}>Friday</option>
-                <option value={6}>Saturday</option>
-                <option value={0}>Sunday</option>
-              </select>
-            </div>
-          )}
-        </div>
-          
-          {/*-------------------------- Reminders -----------------------*/}
-        <div className="mt-3">
-          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Reminders</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {(data.remindBefore || []).map((m) => (
-              <button
-                key={m}
-                onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
-                className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10"
-              >
-                {m} min ✕
-              </button>
-            ))}
-            {[5, 10, 15, 30, 60, 120].map((m) => (
-              <button
-                key={m}
-                onClick={() =>
-                  setData((d) => ({
-                    ...d,
-                    remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a, b) => a - b),
-                  }))
-                }
-                className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                +{m}m
-              </button>
-            ))}
           </div>
-        </div>
-          
-          {/*------------------------------- Auto/Manual toggle + preview ----------------------------------*/}
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
-          <span className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Auto place by due date</span>
-          <button
-            onClick={() =>
-              setData((d) => ({
-                ...d,
-                statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto",
-              }))
-            }
-            className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
-          >
-            {isAuto ? "On" : "Off"}
-          </button>
-        </div>
-        {isAuto && (
-          <div className="text-[11px] -mt-1" style={{ color: "var(--label-subtle)" }}>
-            Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
+
+          {/* Notes */}
+          <div className="space-y-1 mt-3">
+            <label className="text-xs text-slate-300">Notes</label>
+            <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
+              <textarea
+                value={data.notes || ""}
+                onChange={(e) => setData({ ...data, notes: e.target.value })}
+                placeholder="Details, links, etc."
+                className="w-full min-h-[80px] rounded-xl px-3 py-2 bg-white/10 border border-white/10"
+              />
+            </motion.div>
           </div>
-        )}
-          {/*------------------------ Quick actions -----------------------------------*/}
-        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-          <div className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Quick actions</div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setData({ ...data, statusMode: "auto" })}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-              Use auto placement
-            </button>
-            <button onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-              Pin to Today
-            </button>
-            <button onClick={() => setData({ ...data, time: "09:00" })}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-              9:00 AM
-            </button>
-            <button onClick={() => setData({ ...data, remindBefore: [10] })}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-              Remind 10m
+
+          {/* Auto/Manual toggle + preview */}
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
+            <span className="text-xs text-slate-300">Auto place by due date</span>
+            <button
+              onClick={() =>
+                setData((d) => ({
+                  ...d,
+                  statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto",
+                }))
+              }
+              className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
+            >
+              {isAuto ? "On" : "Off"}
             </button>
           </div>
           {isAuto && (
-            <div className="text-[11px] text-slate-400 mt-2">
-              With Auto on, changing Date/Time updates the target column preview above.
+            <div className="text-[11px] -mt-1 text-slate-300/90">
+              Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
             </div>
           )}
-        </div>
-      </div>
-        {/* ----------------- Tags ---------------------*/}
-        <div className="mt-3">
-          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Tags</label>
-          <TagPicker
-            available={allTags}
-            value={data.tags || []}
-            onChange={(next) => setData((d) => ({ ...d, tags: next }))}
-          />
-        </div> 
-        
-      {/*----------------------- Actions (sticky footer) -----------------------*/}
-      <div
-        className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+
+          {/* Status + priority */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-300">Status</label>
+              <select
+                value={data.status}
+                onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
+                disabled={isAuto}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
               >
-                <button
-                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
-                  onClick={onClose}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
-                  onClick={save}
-                >
-                  Save task
-                </button>
-              </div>
-        
-            </motion.div>   {/* Panel end */}
+                <option value="today">Today</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="backlog">Backlog</option>
+                <option value="done">Completed</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-300">Priority</label>
+              <select
+                value={data.priority}
+                onChange={(e) => setData({ ...data, priority: e.target.value })}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
           </div>
-        );
-        }  // end of TaskModal
 
-{/*---------- Tag Picker (type-ahead) ----------*/}
-function TagPicker({ available = [], value = [], onChange, placeholder = "Add or select tag…" }) {
-  const [input, setInput] = React.useState("");
+          {/* Date + time */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-300">Start date</label>
+              <input
+                type="date"
+                value={data.nextDue}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setData((d) => {
+                    const wasMulti = isMultiDay(d);
+                    let end = d.endDate || v;
+                    if (end < v) end = v;
+                    if (!wasMulti) end = v;
+                    return { ...d, nextDue: v, endDate: end };
+                  });
+                }}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-300">Time</label>
+              <input
+                type="time"
+                value={data.time}
+                onChange={(e) => setData({ ...data, time: e.target.value })}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              />
+            </div>
+          </div>
 
-  // Unique, case-insensitive map of available tags (keep first-seen display casing)
-  const availEntries = React.useMemo(() => {
-    const m = new Map(); // low -> display
-    for (const raw of available) {
-      if (!raw) continue;
-      const txt = String(raw).trim();
-      if (!txt) continue;
-      const low = txt.toLowerCase();
-      if (!m.has(low)) m.set(low, txt);
-    }
-    return Array.from(m.entries()); // [ [low, display], ... ]
-  }, [available]);
+          {/* Multi-day toggle + end date */}
+          <label className="mt-2 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isMultiDay(data)}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setData((d) => {
+                  if (!on) return { ...d, endDate: d.nextDue };
+                  const curEnd = d.endDate || d.nextDue;
+                  const needsBump = curEnd <= d.nextDue;
+                  const bumped = toISO(addDays(fromISO(d.nextDue), 1));
+                  return { ...d, endDate: needsBump ? bumped : curEnd };
+                });
+              }}
+            />
+            Spans multiple days
+          </label>
 
-  const selected = value;
-  const selectedLow = React.useMemo(
-    () => new Set(selected.map((t) => String(t).toLowerCase())),
-    [selected]
+          {isMultiDay(data) && (
+            <div className="mt-2">
+              <label className="text-xs text-slate-300">End date</label>
+              <input
+                type="date"
+                value={data.endDate}
+                min={data.nextDue}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setData((d) => ({ ...d, endDate: v < d.nextDue ? d.nextDue : v }));
+                }}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              />
+            </div>
+          )}
+
+          {/* Reminders */}
+          <div className="mt-3">
+            <label className="text-xs text-slate-300">Reminders</label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {(data.remindBefore || []).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
+                  className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10"
+                >
+                  {m} min ✕
+                </button>
+              ))}
+              {[5, 10, 15, 30, 60, 120].map((m) => (
+                <button
+                  key={m}
+                  onClick={() =>
+                    setData((d) => ({
+                      ...d,
+                      remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a, b) => a - b),
+                    }))
+                  }
+                  className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
+                >
+                  +{m}m
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="mt-3">
+            <label className="text-xs text-slate-300">Tags</label>
+            <TagPicker
+              available={allTags}
+              value={data.tags || []}
+              onChange={(next) =>
+                setData((d) => ({
+                  ...d,
+                  tags: next,
+                  primaryTag: next.includes(d.primaryTag) ? d.primaryTag : (next[0] || null),
+                }))
+              }
+              prefs={prefs}
+              onEditTagColor={onEditTagColor}
+            />
+          </div>
+
+          {/* Primary tag (card color) */}
+          {(data.tags || []).length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-300">Primary tag (card color)</label>
+                <select
+                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                  value={data.primaryTag || primaryTagFor(data, prefs) || data.tags[0]}
+                  onChange={(e) => setData({ ...data, primaryTag: e.target.value })}
+                >
+                  {(data.tags || []).map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Recurring */}
+          <div className="mt-3 space-y-2">
+            <label className="text-xs text-slate-300">Recurring</label>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={data.repeat}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setData((d) => {
+                    const wasMulti = isMultiDay(d);
+                    if (v === "weekly") {
+                      const base = d.nextDue || todayISO();
+                      const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                      const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
+                      const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
+                      return { ...d, repeat: v, repeatWeekday: wd, nextDue: alignedISO, endDate: newEnd };
+                    }
+                    if (v === "monthly-nth") {
+                      const base = d.nextDue || todayISO();
+                      const wd = d.repeatWeekday ?? fromISO(base).getDay();
+                      const ord = d.repeatNth ?? 1;
+                      const alignedISO = alignMonthlyNthISO(base, wd, ord);
+                      const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
+                      return { ...d, repeat: v, repeatWeekday: wd, repeatNth: ord, nextDue: alignedISO, endDate: newEnd };
+                    }
+                    const newEnd = wasMulti ? d.endDate : d.nextDue;
+                    return { ...d, repeat: v, endDate: newEnd };
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              >
+                <option value="none">None</option>
+                <option value="daily">Daily</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="monthly-nth">Monthly (nth weekday)</option>
+                <option value="custom">Custom (days)</option>
+              </select>
+
+              <input
+                type="number"
+                min={1}
+                value={data.repeatIntervalDays}
+                onChange={(e) => setData({ ...data, repeatIntervalDays: Math.max(1, Math.min(365, Number(e.target.value || 1))) })}
+                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                placeholder="Every…"
+              />
+            </div>
+
+            {/* Weekly weekday picker */}
+            {data.repeat === "weekly" && (
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+                  onChange={(e) => {
+                    const wd = Number(e.target.value);
+                    const iso = toISO(nextOnOrAfterWeekday(data.nextDue || todayISO(), wd));
+                    setData((d) => {
+                      const wasMulti = isMultiDay(d);
+                      const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                      return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
+                    });
+                  }}
+                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                >
+                  <option value={1}>Monday</option>
+                  <option value={2}>Tuesday</option>
+                  <option value={3}>Wednesday</option>
+                  <option value={4}>Thursday</option>
+                  <option value={5}>Friday</option>
+                  <option value={6}>Saturday</option>
+                  <option value={0}>Sunday</option>
+                </select>
+                <div className="self-center text-xs text-slate-400">
+                  Repeats every {data.repeatIntervalDays} week(s)
+                </div>
+              </div>
+            )}
+
+            {/* Monthly (nth weekday) pickers */}
+            {data.repeat === "monthly-nth" && (
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={data.repeatNth ?? 1}
+                  onChange={(e) => {
+                    const ord = Number(e.target.value);
+                    setData((d) => {
+                      const base = d.nextDue || todayISO();
+                      const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
+                      const iso = alignMonthlyNthISO(base, wd, ord);
+                      const wasMulti = isMultiDay(d);
+                      const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                      return { ...d, repeatNth: ord, nextDue: iso, endDate: newEnd };
+                    });
+                  }}
+                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                >
+                  <option value={1}>1st</option>
+                  <option value={2}>2nd</option>
+                  <option value={3}>3rd</option>
+                  <option value={4}>4th</option>
+                  <option value={-1}>Last</option>
+                </select>
+
+                <select
+                  value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+                  onChange={(e) => {
+                    const wd = Number(e.target.value);
+                    setData((d) => {
+                      const base = d.nextDue || todayISO();
+                      const ord = Number(d.repeatNth ?? 1);
+                      const iso = alignMonthlyNthISO(base, wd, ord);
+                      const wasMulti = isMultiDay(d);
+                      const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                      return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
+                    });
+                  }}
+                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                >
+                  <option value={1}>Monday</option>
+                  <option value={2}>Tuesday</option>
+                  <option value={3}>Wednesday</option>
+                  <option value={4}>Thursday</option>
+                  <option value={5}>Friday</option>
+                  <option value={6}>Saturday</option>
+                  <option value={0}>Sunday</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Quick actions */}
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="text-xs text-slate-300 mb-2">Quick actions</div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setData({ ...data, statusMode: "auto" })}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                Use auto placement
+              </button>
+              <button onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                Pin to Today
+              </button>
+              <button onClick={() => setData({ ...data, time: "09:00" })}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                9:00 AM
+              </button>
+              <button onClick={() => setData({ ...data, remindBefore: [10] })}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                Remind 10m
+              </button>
+            </div>
+            {isAuto && (
+              <div className="text-[11px] text-slate-400 mt-2">
+                With Auto on, changing Date/Time updates the target column preview above.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions (sticky footer) */}
+        <div
+          className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
+          style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        >
+          <button className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black" onClick={save}>
+            Save task
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
-  const q = input.trim().toLowerCase();
+}
 
-  // Suggestions while typing: startsWith > includes (top 6)
-  const suggestions = React.useMemo(() => {
-    if (!q) return [];
-    const starts = [];
-    const contains = [];
-    for (const [low, display] of availEntries) {
-      if (selectedLow.has(low)) continue;
-      if (low.startsWith(q)) starts.push(display);
-      else if (low.includes(q)) contains.push(display);
-    }
-    return [...starts, ...contains].slice(0, 6);
-  }, [availEntries, selectedLow, q]);
+/* ---------- Tag Picker ---------- */
+function TagPicker({ available = [], value = [], onChange, prefs, onEditTagColor }) {
+  const [input, setInput] = React.useState("");
+  const normalized = React.useMemo(
+    () => Array.from(new Set(available.map((t) => String(t).trim()).filter(Boolean))).sort(),
+    [available]
+  );
+  const selected = value;
+  const lower = input.toLowerCase();
 
-  const add = (raw) => {
-    const s = (raw || input).trim();
-    if (!s) return;
-    const match = availEntries.find(([low]) => low === s.toLowerCase());
-    const canonical = match ? match[1] : s;
-    onChange(Array.from(new Set([...selected, canonical])));
+  const suggestions = React.useMemo(
+    () =>
+      normalized
+        .filter((t) => !selected.includes(t))
+        .filter((t) => (lower ? t.toLowerCase().includes(lower) : true))
+        .slice(0, 8),
+    [normalized, selected, lower]
+  );
+
+  const add = (tag) => {
+    const clean = (tag || "").trim();
+    if (!clean) return;
+    onChange(Array.from(new Set([...selected, clean])));
     setInput("");
   };
 
   const remove = (tag) => onChange(selected.filter((t) => t !== tag));
-  const hasExact = availEntries.some(([low]) => low === q);
 
   return (
     <div className="mt-1">
       {/* Selected chips */}
       <div className="flex flex-wrap gap-2 mb-2">
         {selected.map((t) => (
-          <span
-            key={t}
-            className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1"
-            title={`Tag: ${t}`}
-          >
+          <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
+            <button
+              type="button"
+              title="Set color"
+              className="w-3.5 h-3.5 rounded-full border border-white/20"
+              style={{ background: prefs?.tagsPalette?.[t]?.color || "transparent" }}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "color";
+                input.value = prefs?.tagsPalette?.[t]?.color || "#7dd3fc";
+                input.onchange = (e) => onEditTagColor?.(t, { color: e.target.value });
+                input.click();
+              }}
+            />
             #{t}
             <button
               type="button"
               className="ml-1 opacity-60 hover:opacity-100"
               onClick={() => remove(t)}
               aria-label={`Remove ${t}`}
-              title="Remove"
             >
               ✕
             </button>
@@ -1775,46 +1865,39 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
         ))}
       </div>
 
-      {/* Input + suggestions */}
+      {/* Input */}
       <div className="relative">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); add(suggestions[0] || input); }
-            else if (e.key === "Tab" && q && suggestions.length) { e.preventDefault(); add(suggestions[0]); }
-            else if (e.key === "Backspace" && !input && selected.length) { remove(selected[selected.length - 1]); }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(input);
+            }
           }}
-          placeholder={placeholder}
+          placeholder="Add or select tag…"
           className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-          aria-autocomplete="list"
-          aria-expanded={!!(q && suggestions.length)}
         />
 
-        {q && (
-          <div
-            className="absolute z-50 left-0 right-0 mt-2 rounded-xl border shadow-xl max-h-56 overflow-auto"
-            style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
-          >
+        {/* Suggestions dropdown */}
+        {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
+          <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
             {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10"
+                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
                 onClick={() => add(s)}
-                style={{ color: "var(--text)" }}
               >
                 #{s}
               </button>
             ))}
-
-            {/* “Add …” appears only when the typed text isn’t an existing tag */}
-            {input && !hasExact && (
+            {input && !normalized.includes(input) && (
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 rounded-lg"
+                className="mt-1 w-full text-left px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30"
                 onClick={() => add(input)}
-                style={{ background: "var(--subsurface)", border: "1px solid var(--border)", color: "var(--text)" }}
               >
                 Add “{input}”
               </button>
@@ -1825,7 +1908,8 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
     </div>
   );
 }
-{/* ---------- Visuals & other modals ---------- */}
+
+/* ---------- Visuals & other modals ---------- */
 function AuroraBackground() { return null; }
 
 function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, onClose, onSubmit }) {
@@ -1846,14 +1930,14 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-slate-200">Email</label>
+            <label className="text-xs text-slate-300">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10" required />
           </div>
 
           {mode !== "reset" && (
             <div>
-              <label className="text-xs font-medium text-slate-200">Password</label>
+              <label className="text-xs text-slate-300">Password</label>
               <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" minLength={6}
                      className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10" required />
             </div>
@@ -1861,27 +1945,15 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
 
           <div className="flex items-center gap-2 justify-end">
             {mode === "signin" && (
-              <button
-                type="button"
-                onClick={() => setMode("reset")}
-                className="text-xs font-medium text-slate-200 underline underline-offset-2 mr-auto"
-              >
+              <button type="button" onClick={() => setMode("reset")} className="text-xs text-slate-300 underline underline-offset-2 mr-auto">
                 Forgot password?
               </button>
             )}
-          
-            <button
-              type="button"
-              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
-            >
+            <button type="button" onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15">
               {mode === "signup" ? "Have an account? Sign in" : "New here? Create account"}
             </button>
-          
-            <button
-              type="submit"
-              className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
-            >
+            <button type="submit" className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black">
               {mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : "Sign in"}
             </button>
           </div>
@@ -1891,7 +1963,7 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
   );
 }
 
-function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
+function ThemeModal({ open, onClose, colors, finish, onChange, onFinishChange, onPreset }) {
   if (!open) return null;
 
   const presets = [
@@ -1901,7 +1973,6 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
     { name: "Grape",  from: "#1a1026", via: "#3b1d5a", to: "#a78bfa", accent: "#c084fc" },
     { name: "Mono",   from: "#0f172a", via: "#1f2937", to: "#334155", accent: "#e2e8f0" },
   ];
-
   const set = (key) => (e) => onChange({ [key]: e.target.value });
 
   return (
@@ -1923,29 +1994,41 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-medium text-slate-200">Background From</label>
+            <label className="text-xs text-slate-300">Background From</label>
             <input type="color" value={colors.from} onChange={set("from")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-200">Background Via</label>
+            <label className="text-xs text-slate-300">Background Via</label>
             <input type="color" value={colors.via} onChange={set("via")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-200">Background To</label>
+            <label className="text-xs text-slate-300">Background To</label>
             <input type="color" value={colors.to} onChange={set("to")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-200">Accent</label>
+            <label className="text-xs text-slate-300">Accent</label>
             <input type="color" value={colors.accent} onChange={set("accent")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
         </div>
 
         <div className="mt-4">
-          <div className="text-xs font-medium text-slate-200 mb-2">Presets</div>
+          <label className="text-xs text-slate-300">Card finish</label>
+          <select
+            className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            value={finish || "soft"}
+            onChange={(e) => onFinishChange?.(e.target.value)}
+          >
+            <option value="soft">Soft tint</option>
+            <option value="glass">Glass</option>
+          </select>
+        </div>
+
+        <div className="mt-4">
+          <div className="text-xs text-slate-300 mb-2">Presets</div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <button key={p.name} onClick={() => onPreset(p)} className="rounded-xl border border-white/10 overflow-hidden" title={p.name}>
@@ -1965,7 +2048,7 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
         </div>
 
         <div className="mt-4 rounded-xl border border-white/10 p-3">
-          <div className="text-xs font-medium text-slate-200 mb-2">Preview</div>
+          <div className="text-xs text-slate-300 mb-2">Preview</div>
           <div className="h-20 w-full rounded-lg border border-white/10"
                style={{ background: `linear-gradient(135deg, ${colors.from}, ${colors.via}, ${colors.to})` }} />
           <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
