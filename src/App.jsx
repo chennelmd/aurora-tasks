@@ -468,7 +468,7 @@ export default function App() {
   updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
 }, [tasksCol, tasks]);
 
-  {/* ---------- Writes ---------- */
+  {/* ---------- Writes ---------- */}
   async function upsertTask(task) {
     if (user && tasksCol) {
       await setDoc(doc(tasksCol, task.id), task, { merge: true });
@@ -541,7 +541,7 @@ export default function App() {
     }
   }
 
-  {/* ---------- DnD: manual override on drag ---------- */
+  {/* ---------- DnD: manual override on drag ---------- */}
   async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
@@ -551,7 +551,7 @@ export default function App() {
     toast("Manual override enabled for this task");
   }
 
-  {/* ---------- Export / Import JSON ---------- */
+  {/* ---------- Export / Import JSON ---------- */}
   function exportData() {
     const payload = { tasks, prefs, exportedAt: new Date().toISOString(), version: 1 };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -682,7 +682,7 @@ export default function App() {
     toast("Signed out");
   }
 
-  {/* ---------- Calendar state ---------- */
+  {/* ---------- Calendar state ---------- */}
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
   const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7)); // Monday grid start
@@ -1688,8 +1688,8 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
     Save task
   </button>
 </div>
-</motion.div>   {/* Panel end */}
-</div>          {/* Overlay end */}
+  </motion.div>   {/* Panel end */}
+  </div>
 );
 }               // end of TaskModal
 
