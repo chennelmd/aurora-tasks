@@ -50,7 +50,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-/* ---------------------- utils ---------------------- */
+{/* ---------------------- utils ---------------------- */}
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
@@ -67,7 +67,7 @@ const parseTimeToDate = (iso, hhmm) => {
   return new Date(y, m - 1, d, h, min, 0, 0);
 };
 
-/* --- timezone-safe plain date helpers (no UTC drift) --- */
+  {/* --- timezone-safe plain date helpers (no UTC drift) --- */}
 const fromISO = (iso) => {
   if (!iso) return new Date(NaN);
   const [y, m, d] = iso.split("-").map(Number);
@@ -81,7 +81,7 @@ const toISO = (d) => {
 };
 const todayISO = () => toISO(new Date());
 
-/* ---- sorting helpers ---- */
+    {/* ---- sorting helpers ---- */}
 function taskDueDate(t) {
   if (!t.nextDue) return null;
   const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
@@ -100,7 +100,7 @@ const formatDateShort = (dateish) => {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-/* ---- THEME helpers ---- */
+{/* ---- THEME helpers ---- */}
 const defaultTheme = { from: "#0b1220", via: "#1b2450", to: "#0ea5e9", accent: "#38bdf8" };
 
 
@@ -145,7 +145,7 @@ function getContrastText(hex) {
   return yiq >= 150 ? "#000000" : "#ffffff";
 }
 
-/* ---- extra date helpers (nth weekday etc.) ---- */
+{/* ---- extra date helpers (nth weekday etc.) ---- */}
 const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 const nextOnOrAfterWeekday = (dateish, weekday) => {
   const d = typeof dateish === "string" ? fromISO(dateish) : new Date(dateish.valueOf());
@@ -199,7 +199,7 @@ function alignMonthlyNthISO(baseISO, weekday, ordinal) {
   return candStr;
 }
 
-/* ---- range helpers for multi-day tasks ---- */
+{/* ---- range helpers for multi-day tasks ---- */}
 const isMultiDay = (t) => !!t.nextDue && !!t.endDate && t.endDate !== t.nextDue;
 function eachDateInRange(startISO, endISO) {
   if (!startISO) return [];
@@ -228,7 +228,7 @@ function formatRangeShort(startISO, endISO) {
   return `${sStr}–${eStr}`;
 }
 
-/* ---------- Auto-placement helpers ---------- */
+{/* ---------- Auto-placement helpers ---------- */}
 const isISO = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 function computeAutoStatus(task, now = new Date()) {
   if (task.status === "done") return "done";
@@ -252,7 +252,7 @@ function effectiveStatus(task) {
   return mode === "manual" ? (task.status || "today") : computeAutoStatus(task);
 }
 
-/* ---------- Sample data ---------- */
+{/* ---------- Sample data ---------- */}
 const SAMPLE_TASKS = [
   { id: uid(), title: "Morning stretch", notes: "5–10 minutes of mobility", status: "today", priority: "low", tags: ["wellness"], nextDue: todayISO(), endDate: todayISO(), time: "08:00", remindBefore: [10], repeat: "weekdays", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [ { id: uid(), text: "Neck rolls", done: false }, { id: uid(), text: "Hamstrings", done: false } ] },
   { id: uid(), title: "Inbox zero", notes: "Clear 10 emails", status: "today", priority: "medium", tags: ["work"], nextDue: todayISO(), endDate: todayISO(), time: "09:00", remindBefore: [5], repeat: "daily", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
@@ -260,7 +260,7 @@ const SAMPLE_TASKS = [
   { id: uid(), title: "Basement deep clean", notes: "Declutter, mop, shelves", status: "upcoming", priority: "medium", tags: ["home"], nextDue: todayISO(), endDate: toISO(addDays(new Date(), 6)), time: "", remindBefore: [], repeat: "none", repeatIntervalDays: 1, createdAt: new Date().toISOString(), lastCompletedAt: null, checklist: [] },
 ];
 
-/* ---------------------- App ---------------------- */
+{/* ---------------------- App ---------------------- */}
 export default function App() {
   // Auth
   const [user, setUser] = useState(null);
@@ -425,7 +425,7 @@ export default function App() {
     });
   }, [tasks, query, tagFilter, priorityFilter]);
 
-  /* ---------- Columns with 7-day Upcoming + sorting ---------- */
+  {/* ---------- Columns with 7-day Upcoming + sorting ---------- */}
   const columns = useMemo(() => {
     const bucket = { today: [], upcoming: [], backlog: [], done: [] };
     for (const t of filteredTasks) {
@@ -439,7 +439,7 @@ export default function App() {
     return bucket;
   }, [filteredTasks]);
 
-  /* ---------- One-time auto realignment for existing data ---------- */
+  {/* ---------- One-time auto realignment for existing data ---------- */}
  useEffect(() => {
   if (!tasksCol || !tasks.length) return;
 
@@ -468,7 +468,7 @@ export default function App() {
   updates.forEach(({ id, patch }) => setDoc(doc(tasksCol, id), patch, { merge: true }));
 }, [tasksCol, tasks]);
 
-  /* ---------- Writes ---------- */
+  {/* ---------- Writes ---------- */
   async function upsertTask(task) {
     if (user && tasksCol) {
       await setDoc(doc(tasksCol, task.id), task, { merge: true });
@@ -541,7 +541,7 @@ export default function App() {
     }
   }
 
-  /* ---------- DnD: manual override on drag ---------- */
+  {/* ---------- DnD: manual override on drag ---------- */
   async function onDragEnd(result) {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
@@ -551,7 +551,7 @@ export default function App() {
     toast("Manual override enabled for this task");
   }
 
-  /* ---------- Export / Import JSON ---------- */
+  {/* ---------- Export / Import JSON ---------- */
   function exportData() {
     const payload = { tasks, prefs, exportedAt: new Date().toISOString(), version: 1 };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -682,7 +682,7 @@ export default function App() {
     toast("Signed out");
   }
 
-  /* ---------- Calendar state ---------- */
+  {/* ---------- Calendar state ---------- */
   const [calMonth, setCalMonth] = useState(() => new Date());
   const monthStart = startOfMonth(calMonth);
   const startGrid = addDays(monthStart, -((monthStart.getDay() + 6) % 7)); // Monday grid start
@@ -861,7 +861,7 @@ export default function App() {
   );
 }
 
-/* ---------- Portal for dragged cards ---------- */
+{/* ---------- Portal for dragged cards ---------- */}
 function DragPortal({ children, isDragging }) {
   const portalRef = React.useRef(null);
   React.useEffect(() => {
@@ -880,7 +880,7 @@ function DragPortal({ children, isDragging }) {
     : children;
 }
 
-/* ---------- UI pieces ---------- */
+{/* ---------- UI pieces ---------- */}
 function ViewToggle({ value, onChange }) {
   const options = [
     { key: "kanban", label: "Kanban", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -1246,7 +1246,7 @@ function ShieldPill({ icon, text }) {
   );
 }
 
-/* ---------- Task Modal ---------- */
+{/* ---------- Task Modal ---------- */}
 function TaskModal({ open, onClose, task, onSave, allTags }) {
   const [data, setData] = useState(() => emptyTask());
 
@@ -1322,15 +1322,19 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                 </button>
               </div>
   
+            {/* Notes */}
+            <div className="space-y-1">
               <label className="text-xs text-slate-300">Notes</label>
-              <textarea
-                value={data.notes}
-                onChange={(e) => setData({ ...data, notes: e.target.value })}
-                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 min-h-[84px]"
-                placeholder="Details, links, etc."
-              />
+              <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
+                <textarea
+                  value={data.notes || ""}
+                  onChange={(e) => setData({ ...data, notes: e.target.value })}
+                  placeholder="Details, links, etc."
+                  className="w-full min-h-[80px] rounded-xl px-3 py-2 bg-white/10 border border-white/10"
+                />
+              </motion.div>
             </div>
-
+        
             {/* Auto/Manual toggle + preview */}
             <div className="flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
               <span className="text-xs text-slate-300">Auto place by due date</span>
@@ -1684,7 +1688,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
   );
 }
 
-/* ---------- Tag Picker ---------- */
+{/* ---------- Tag Picker ---------- */}
 function TagPicker({ available = [], value = [], onChange }) {
   const [input, setInput] = React.useState("");
   const normalized = React.useMemo(
@@ -1778,7 +1782,7 @@ function TagPicker({ available = [], value = [], onChange }) {
   );
 }
 
-/* ---------- Visuals & other modals ---------- */
+{/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
 
 function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, onClose, onSubmit }) {
