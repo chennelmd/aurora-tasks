@@ -1313,7 +1313,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4"
+        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4 max-h-[85vh] overflow-hidden flex flex-col"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -1322,7 +1322,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             <X className="w-5 h-5" />
           </button>
         </div>
-
+        <div className="flex-1 overflow-auto space-y-4 pr-1">
         {/* Title */}
         <div className="space-y-1">
           <label className="text-xs text-slate-300">Title</label>
@@ -1672,26 +1672,31 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             </div>
           )}
         </div>
+      </div>
+      {/* Actions (sticky footer) */}
+      <div
+        className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+              >
+                <button
+                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
+                  onClick={save}
+                >
+                  Save task
+                </button>
+              </div>
+        
+            </motion.div>   {/* Panel end */}
+          </div>
+        );
+        }  // end of TaskModal
 
-{/* Actions */}
-<div className="mt-6 flex items-center gap-2 justify-end">
-  <button
-    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
-    onClick={onClose}
-  >
-    Cancel
-  </button>
-  <button
-    className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
-    onClick={save}
-  >
-    Save task
-  </button>
-</div>
-  </motion.div>   {/* Panel end */}
-  </div>
-);
-}               // end of TaskModal
 
 // ---------- Tag Picker ----------
 function TagPicker({ available = [], value = [], onChange }) {
