@@ -1823,7 +1823,6 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
           )}
         </div>
       )}
-
 {/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
 
