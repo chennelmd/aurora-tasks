@@ -1325,7 +1325,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         <div className="flex-1 overflow-auto space-y-4 pr-1">
         {/* Title */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-300">Title</label>
+          <label className="text-xs font-medium text-slate-200">Title</label>
           <div className="relative flex items-center gap-2">
             <input
               ref={titleRef}
@@ -1345,7 +1345,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
         {/* Notes */}
         <div className="space-y-1 mt-3">
-          <label className="text-xs text-slate-300">Notes</label>
+          <label className="text-xs font-medium text-slate-200">Notes</label>
           <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
             <textarea
               value={data.notes || ""}
@@ -1356,31 +1356,12 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </motion.div>
         </div>
 
-        {/* Auto/Manual toggle + preview */}
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
-          <span className="text-xs text-slate-300">Auto place by due date</span>
-          <button
-            onClick={() =>
-              setData((d) => ({
-                ...d,
-                statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto",
-              }))
-            }
-            className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
-          >
-            {isAuto ? "On" : "Off"}
-          </button>
-        </div>
-        {isAuto && (
-          <div className="text-[11px] -mt-1 text-slate-300/90">
-            Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
-          </div>
-        )}
+
 
         {/* Status + priority */}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-slate-300">Status</label>
+            <label className="text-xs font-medium text-slate-200">Status</label>
             <select
               value={data.status}
               onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
@@ -1394,7 +1375,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-300">Priority</label>
+            <label className="text-xs font-medium text-slate-200">Priority</label>
             <select
               value={data.priority}
               onChange={(e) => setData({ ...data, priority: e.target.value })}
@@ -1410,7 +1391,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         {/* Date + time */}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-slate-300">Start date</label>
+            <label className="text-xs font-medium text-slate-200">Start date</label>
             <input
               type="date"
               value={data.nextDue}
@@ -1428,7 +1409,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             />
           </div>
           <div>
-            <label className="text-xs text-slate-300">Time</label>
+            <label className="text-xs font-medium text-slate-200">Time</label>
             <input
               type="time"
               value={data.time}
@@ -1459,7 +1440,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
         {isMultiDay(data) && (
           <div className="mt-2">
-            <label className="text-xs text-slate-300">End date</label>
+            <label className="text-xs font-medium text-slate-200">End date</label>
             <input
               type="date"
               value={data.endDate}
@@ -1475,7 +1456,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
         {/* Reminders */}
         <div className="mt-3">
-          <label className="text-xs text-slate-300">Reminders</label>
+          <label className="text-xs font-medium text-slate-200">Reminders</label>
           <div className="mt-1 flex flex-wrap gap-2">
             {(data.remindBefore || []).map((m) => (
               <button
@@ -1505,7 +1486,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
       {/* Recurring */}
         <div className="mt-3 space-y-2">
-          <label className="text-xs text-slate-300">Recurring</label>
+          <label className="text-xs font-medium text-slate-200">Recurring</label>
           <div className="grid grid-cols-2 gap-2">
             <select
               value={data.repeat}
@@ -1634,10 +1615,29 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             </div>
           )}
         </div>
-
+        {/* Auto/Manual toggle + preview */}
+        <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
+          <span className="text-xs font-medium text-slate-200">Auto place by due date</span>
+          <button
+            onClick={() =>
+              setData((d) => ({
+                ...d,
+                statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto",
+              }))
+            }
+            className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
+          >
+            {isAuto ? "On" : "Off"}
+          </button>
+        </div>
+        {isAuto && (
+          <div className="text-[11px] -mt-1 text-slate-300/90">
+            Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
+          </div>
+        )}
         {/* Quick actions */}
         <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-          <div className="text-xs text-slate-300 mb-2">Quick actions</div>
+          <div className="text-xs font-medium text-slate-200 mb-2">Quick actions</div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setData({ ...data, statusMode: "auto" })}
                     className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
@@ -1665,7 +1665,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       </div>
       {/* Tags */}
         <div className="mt-3">
-          <label className="text-xs text-slate-300">Tags</label>
+          <label className="text-xs font-medium text-slate-200">Tags</label>
           <TagPicker
             available={allTags}
             value={data.tags || []}
@@ -1795,23 +1795,34 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
         />
 
         {q && suggestions.length > 0 && (
-          <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2 max-h-56 overflow-auto">
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
-                onClick={() => add(s)}
-              >
-                #{s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+        <div
+          className="absolute z-50 left-0 right-0 mt-2 rounded-xl border shadow-xl max-h-56 overflow-auto"
+          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+        >
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10"
+              onClick={() => add(s)}
+              style={{ color: "var(--text)" }}
+            >
+              #{s}
+            </button>
+          ))}
+      
+          {input && !normalized.includes(input) && (
+            <button
+              type="button"
+              className="mt-1 w-full text-left px-3 py-2 rounded-lg"
+              onClick={() => add(input)}
+              style={{ background: "var(--subsurface)", border: "1px solid var(--border)", color: "var(--text)" }}
+            >
+              Add “{input}”
+            </button>
+          )}
+        </div>
+      )}
 
 {/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
@@ -1834,14 +1845,14 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="text-xs text-slate-300">Email</label>
+            <label className="text-xs font-medium text-slate-200">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10" required />
           </div>
 
           {mode !== "reset" && (
             <div>
-              <label className="text-xs text-slate-300">Password</label>
+              <label className="text-xs font-medium text-slate-200">Password</label>
               <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" minLength={6}
                      className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10" required />
             </div>
@@ -1849,7 +1860,7 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
 
           <div className="flex items-center gap-2 justify-end">
             {mode === "signin" && (
-              <button type="button" onClick={() => setMode("reset")} className="text-xs text-slate-300 underline underline-offset-2 mr-auto">
+              <button type="button" onClick={() => setMode("reset")} className="text-xs font-medium text-slate-200" underline underline-offset-2 mr-auto">
                 Forgot password?
               </button>
             )}
@@ -1899,29 +1910,29 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-slate-300">Background From</label>
+            <label className="text-xs font-medium text-slate-200">Background From</label>
             <input type="color" value={colors.from} onChange={set("from")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs text-slate-300">Background Via</label>
+            <label className="text-xs font-medium text-slate-200">Background Via</label>
             <input type="color" value={colors.via} onChange={set("via")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs text-slate-300">Background To</label>
+            <label className="text-xs font-medium text-slate-200">Background To</label>
             <input type="color" value={colors.to} onChange={set("to")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
           <div>
-            <label className="text-xs text-slate-300">Accent</label>
+            <label className="text-xs font-medium text-slate-200">Accent</label>
             <input type="color" value={colors.accent} onChange={set("accent")}
                    className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-transparent" />
           </div>
         </div>
 
         <div className="mt-4">
-          <div className="text-xs text-slate-300 mb-2">Presets</div>
+          <div className="text-xs font-medium text-slate-200 mb-2">Presets</div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <button key={p.name} onClick={() => onPreset(p)} className="rounded-xl border border-white/10 overflow-hidden" title={p.name}>
@@ -1941,7 +1952,7 @@ function ThemeModal({ open, onClose, colors, onChange, onPreset }) {
         </div>
 
         <div className="mt-4 rounded-xl border border-white/10 p-3">
-          <div className="text-xs text-slate-300 mb-2">Preview</div>
+          <div className="text-xs font-medium text-slate-200 mb-2">Preview</div>
           <div className="h-20 w-full rounded-lg border border-white/10"
                style={{ background: `linear-gradient(135deg, ${colors.from}, ${colors.via}, ${colors.to})` }} />
           <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
