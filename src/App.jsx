@@ -1697,13 +1697,11 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         );
         }  // end of TaskModal
 
-
-// ---------- Tag Picker ----------
 // ---------- Tag Picker (type-ahead) ----------
 function TagPicker({ available = [], value = [], onChange, placeholder = "Add or select tag…" }) {
   const [input, setInput] = React.useState("");
 
-  // Map available tags to a unique, case-insensitive set but keep first-seen casing
+  // Unique, case-insensitive map of available tags (keep first-seen display casing)
   const availEntries = React.useMemo(() => {
     const m = new Map(); // low -> display
     for (const raw of available) {
@@ -1717,10 +1715,13 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
   }, [available]);
 
   const selected = value;
-  const selectedLow = React.useMemo(() => new Set(selected.map(t => String(t).toLowerCase())), [selected]);
+  const selectedLow = React.useMemo(
+    () => new Set(selected.map((t) => String(t).toLowerCase())),
+    [selected]
+  );
   const q = input.trim().toLowerCase();
 
-  // Suggestions: only while typing, ranked startsWith > includes, deduped, top 6
+  // Suggestions while typing: startsWith > includes (top 6)
   const suggestions = React.useMemo(() => {
     if (!q) return [];
     const starts = [];
@@ -1736,15 +1737,14 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
   const add = (raw) => {
     const s = (raw || input).trim();
     if (!s) return;
-    // if the typed string matches an existing tag (any case), keep the canonical casing
     const match = availEntries.find(([low]) => low === s.toLowerCase());
-    const candidate = match ? match[1] : s;
-    const next = Array.from(new Set([...selected, candidate]));
-    onChange(next);
+    const canonical = match ? match[1] : s;
+    onChange(Array.from(new Set([...selected, canonical])));
     setInput("");
   };
 
-  const remove = (tag) => onChange(selected.filter(t => t !== tag));
+  const remove = (tag) => onChange(selected.filter((t) => t !== tag));
+  const hasExact = availEntries.some(([low]) => low === q);
 
   return (
     <div className="mt-1">
@@ -1770,59 +1770,56 @@ function TagPicker({ available = [], value = [], onChange, placeholder = "Add or
         ))}
       </div>
 
-      {/* Input + suggestions (only while typing) */}
+      {/* Input + suggestions */}
       <div className="relative">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add(suggestions[0] || input);
-            } else if (e.key === "Tab" && q && suggestions.length) {
-              // accept first suggestion on Tab
-              e.preventDefault();
-              add(suggestions[0]);
-            } else if (e.key === "Backspace" && !input && selected.length) {
-              // delete last chip when input empty
-              remove(selected[selected.length - 1]);
-            }
+            if (e.key === "Enter") { e.preventDefault(); add(suggestions[0] || input); }
+            else if (e.key === "Tab" && q && suggestions.length) { e.preventDefault(); add(suggestions[0]); }
+            else if (e.key === "Backspace" && !input && selected.length) { remove(selected[selected.length - 1]); }
           }}
           placeholder={placeholder}
           className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
           aria-autocomplete="list"
-          aria-expanded={q && suggestions.length > 0 ? true : false}
+          aria-expanded={!!(q && suggestions.length)}
         />
 
-        {q && suggestions.length > 0 && (
-        <div
-          className="absolute z-50 left-0 right-0 mt-2 rounded-xl border shadow-xl max-h-56 overflow-auto"
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
-        >
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10"
-              onClick={() => add(s)}
-              style={{ color: "var(--text)" }}
-            >
-              #{s}
-            </button>
-          ))}
-      
-          {input && !normalized.includes(input) && (
-            <button
-              type="button"
-              className="mt-1 w-full text-left px-3 py-2 rounded-lg"
-              onClick={() => add(input)}
-              style={{ background: "var(--subsurface)", border: "1px solid var(--border)", color: "var(--text)" }}
-            >
-              Add “{input}”
-            </button>
-          )}
-        </div>
-      )}
+        {q && (
+          <div
+            className="absolute z-50 left-0 right-0 mt-2 rounded-xl border shadow-xl max-h-56 overflow-auto"
+            style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          >
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10"
+                onClick={() => add(s)}
+                style={{ color: "var(--text)" }}
+              >
+                #{s}
+              </button>
+            ))}
+
+            {/* “Add …” appears only when the typed text isn’t an existing tag */}
+            {input && !hasExact && (
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2 rounded-lg"
+                onClick={() => add(input)}
+                style={{ background: "var(--subsurface)", border: "1px solid var(--border)", color: "var(--text)" }}
+              >
+                Add “{input}”
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 {/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
 
