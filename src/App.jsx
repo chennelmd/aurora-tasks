@@ -1856,15 +1856,27 @@ function EmailAuthModal({ open, mode, setMode, email, setEmail, pass, setPass, o
 
           <div className="flex items-center gap-2 justify-end">
             {mode === "signin" && (
-              <button type="button" onClick={() => setMode("reset")} className="text-xs font-medium text-slate-200" underline underline-offset-2 mr-auto">
+              <button
+                type="button"
+                onClick={() => setMode("reset")}
+                className="text-xs font-medium text-slate-200 underline underline-offset-2 mr-auto"
+              >
                 Forgot password?
               </button>
             )}
-            <button type="button" onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15">
+          
+            <button
+              type="button"
+              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
+            >
               {mode === "signup" ? "Have an account? Sign in" : "New here? Create account"}
             </button>
-            <button type="submit" className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black">
+          
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
+            >
               {mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : "Sign in"}
             </button>
           </div>
