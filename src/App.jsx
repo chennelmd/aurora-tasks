@@ -81,7 +81,7 @@ const toISO = (d) => {
 };
 const todayISO = () => toISO(new Date());
 
-    {/* ---- sorting helpers ---- */}
+{/* ---- sorting helpers ---- */}
 function taskDueDate(t) {
   if (!t.nextDue) return null;
   const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
