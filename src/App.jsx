@@ -136,6 +136,9 @@ function applyThemeTokens(isDark) {
   root.style.setProperty("--text", t.text);
   root.style.setProperty("--meta", t.meta);
   root.style.setProperty("--count-bg", t.countBg);
+  root.style.setProperty("--label", isDark ? "#E6EAF2" : "#334155");     // strong label
+  root.style.setProperty("--label-subtle", isDark ? "#B9C2D3" : "#475569"); // optional
+
 }
 function getContrastText(hex) {
   let c = (hex || "#000").replace("#", "");
@@ -1325,7 +1328,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         <div className="flex-1 overflow-auto space-y-4 pr-1">
         {/* Title */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-200">Title</label>
+          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Title</label>
           <div className="relative flex items-center gap-2">
             <input
               ref={titleRef}
@@ -1345,7 +1348,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
         {/* Notes */}
         <div className="space-y-1 mt-3">
-          <label className="text-xs font-medium text-slate-200">Notes</label>
+          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Notes</label>
           <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
             <textarea
               value={data.notes || ""}
@@ -1361,7 +1364,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         {/* Status + priority */}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-slate-200">Status</label>
+            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Status</label>
             <select
               value={data.status}
               onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
@@ -1375,7 +1378,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-200">Priority</label>
+            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Priority</label>
             <select
               value={data.priority}
               onChange={(e) => setData({ ...data, priority: e.target.value })}
@@ -1391,7 +1394,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         {/* Date + time */}
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-slate-200">Start date</label>
+            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Start date</label>
             <input
               type="date"
               value={data.nextDue}
@@ -1409,7 +1412,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-200">Time</label>
+            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Time</label>
             <input
               type="time"
               value={data.time}
@@ -1440,7 +1443,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
         {isMultiDay(data) && (
           <div className="mt-2">
-            <label className="text-xs font-medium text-slate-200">End date</label>
+            <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>End date</label>
             <input
               type="date"
               value={data.endDate}
@@ -1456,7 +1459,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
           {/*------------------------- Recurring ---------------------------*/}
         <div className="mt-3 space-y-2">
-          <label className="text-xs font-medium text-slate-200">Recurring</label>
+          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Recurring</label>
           <div className="grid grid-cols-2 gap-2">
             <select
               value={data.repeat}
@@ -1588,7 +1591,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           
           {/*-------------------------- Reminders -----------------------*/}
         <div className="mt-3">
-          <label className="text-xs font-medium text-slate-200">Reminders</label>
+          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Reminders</label>
           <div className="mt-1 flex flex-wrap gap-2">
             {(data.remindBefore || []).map((m) => (
               <button
@@ -1618,7 +1621,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           
           {/*------------------------------- Auto/Manual toggle + preview ----------------------------------*/}
         <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
-          <span className="text-xs font-medium text-slate-200">Auto place by due date</span>
+          <span className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Auto place by due date</span>
           <button
             onClick={() =>
               setData((d) => ({
@@ -1638,7 +1641,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         )}
           {/*------------------------ Quick actions -----------------------------------*/}
         <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-          <div className="text-xs font-medium text-slate-200 mb-2">Quick actions</div>
+          <div className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Quick actions</div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setData({ ...data, statusMode: "auto" })}
                     className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
@@ -1666,7 +1669,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       </div>
         {/* ----------------- Tags ---------------------*/}
         <div className="mt-3">
-          <label className="text-xs font-medium text-slate-200">Tags</label>
+          <label className="text-[13px] font-semibold" style={{ color: "var(--label)" }}>Tags</label>
           <TagPicker
             available={allTags}
             value={data.tags || []}
