@@ -1,4 +1,5 @@
 // src/App.jsx
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { motion } from "framer-motion";
