@@ -1321,7 +1321,27 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-  
+
+                  {/* Title */}
+          <div className="space-y-1">
+            <label className="text-xs text-slate-300">Title</label>
+            <div className="relative flex items-center gap-2">
+              <input
+                ref={titleRef}
+                value={data.title || ""}
+                onChange={(e) => setData({ ...data, title: e.target.value })}
+                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                placeholder="What do you need to do?"
+              />
+              <EmojiPickerButton
+                inputRef={titleRef}
+                theme="dark"
+                className="rounded-lg border px-2 py-1"
+                style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
+              />
+            </div>
+          </div>
+ 
             {/* Notes */}
             <div className="space-y-1">
               <label className="text-xs text-slate-300">Notes</label>
@@ -1715,126 +1735,68 @@ function TagPicker({ available = [], value = [], onChange }) {
 
   const remove = (tag) => onChange(selected.filter((t) => t !== tag));
 
-  return (
-    <div className="mt-1">
-      {/* Selected chips */}
-      <div className="flex flex-wrap gap-2 mb-2">
-        {selected.map((t) => (
-          <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
-            #{t}
-            <button
-              type="button"
-              className="ml-1 opacity-60 hover:opacity-100"
-              onClick={() => remove(t)}
-              aria-label={`Remove ${t}`}
-            >
-              ✕
-            </button>
-          </span>
-        ))}
-      </div>
-
-      {/* Input */}
-      <div className="relative">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add(input);
-            }
-          }}
-          placeholder="Add or select tag…"
-          className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-        />
-
-        {/* Suggestions dropdown */}
-        {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
-          <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
-                onClick={() => add(s)}
-              >
-                #{s}
-              </button>
-            ))}
-            {input && !normalized.includes(input) && (
-              <button
-                type="button"
-                className="mt-1 w-full text-left px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30"
-                onClick={() => add(input)}
-              >
-                Add “{input}”
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}      
-          {/* Quick actions */}
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="text-xs text-slate-300 mb-2">Quick actions</div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setData({ ...data, statusMode: "auto" })}
-                className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                Use auto placement
-              </button>
-              <button
-                onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
-                className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                Pin to Today
-              </button>
-              <button
-                onClick={() => setData({ ...data, time: "09:00" })}
-                className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                9:00 AM
-              </button>
-              <button
-                onClick={() => setData({ ...data, remindBefore: [10] })}
-                className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
-              >
-                Remind 10m
-              </button>
-            </div>
-            {isAuto && (
-              <div className="text-[11px] text-slate-400 mt-2">
-                With Auto on, changing Date/Time updates the target column preview above.
-              </div>
-            )}
-          </div>
-          
-          {/* Actions */}
-          <div className="mt-6 flex items-center gap-2 justify-end">
-            <button
-              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
-              onClick={save}
-            >
-              Save task
-            </button>
-          </div>
-          </div>          {/* RIGHT column end */}
-          </div>          {/* Grid wrapper end */}
-          </motion.div>   {/* Panel end */}
-          </div>          {/* Overlay end */}
-          );
-          }               // <- end of TaskModal
-
+                return (
+                  <div className="mt-1">
+                    {/* Selected chips */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {selected.map((t) => (
+                        <span key={t} className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10 inline-flex items-center gap-1">
+                          #{t}
+                          <button
+                            type="button"
+                            className="ml-1 opacity-60 hover:opacity-100"
+                            onClick={() => remove(t)}
+                            aria-label={`Remove ${t}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+              
+                    {/* Input */}
+                    <div className="relative">
+                      <input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            add(input);
+                          }
+                        }}
+                        placeholder="Add or select tag…"
+                        className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                      />
+              
+                      {/* Suggestions dropdown */}
+                      {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
+                        <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
+                          {suggestions.map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
+                              onClick={() => add(s)}
+                            >
+                              #{s}
+                            </button>
+                          ))}
+                          {input && !normalized.includes(input) && (
+                            <button
+                              type="button"
+                              className="mt-1 w-full text-left px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30"
+                              onClick={() => add(input)}
+                            >
+                              Add “{input}”
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
 {/* ---------- Visuals & other modals ---------- */}
 function AuroraBackground() { return null; }
 
