@@ -1247,12 +1247,12 @@ function ShieldPill({ icon, text }) {
 }
 
 {/* ---------- Task Modal ---------- */}
+{/* ---------- Task Modal ---------- */}
 function TaskModal({ open, onClose, task, onSave, allTags }) {
-  const [data, setData] = useState(() => emptyTask());
+  const [data, setData] = React.useState(() => emptyTask());
+  const titleRef = React.useRef(null);
 
-  const titleRef = useRef(null);
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (!open) return;
     if (task) {
       const copy = { ...task };
@@ -1261,7 +1261,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         delete copy._toggleChecklistId;
       }
       if (!copy.statusMode) copy.statusMode = "auto";
-      if (!copy.endDate) copy.endDate = copy.nextDue; // normalize
+      if (!copy.endDate) copy.endDate = copy.nextDue;
       setData(copy);
     } else {
       const t = emptyTask();
@@ -1285,9 +1285,9 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
       time: "",
       remindBefore: [],
       repeat: "none",
-      repeatIntervalDays: 1, // daily:days, weekly:weeks, monthly/monthly-nth:months, custom:days
-      repeatNth: 1,          // 1..4 or -1 "last"
-      repeatWeekday: 1,      // 0=Sun..6=Sat
+      repeatIntervalDays: 1,
+      repeatNth: 1,
+      repeatWeekday: 1,
       createdAt: new Date().toISOString(),
       lastCompletedAt: null,
       checklist: [],
@@ -1296,12 +1296,12 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
 
   const isAuto = (data.statusMode || "auto") === "auto";
   const autoPreview = computeAutoStatus(data);
-  const capital = (s) => s ? s[0].toUpperCase() + s.slice(1) : "";
+  const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 
   const save = () => {
     if (!data.title.trim()) return toast.error("Please add a title");
     const start = data.nextDue;
-    const end   = !data.endDate || data.endDate < start ? start : data.endDate;
+    const end = !data.endDate || data.endDate < start ? start : data.endDate;
     onSave({ ...data, endDate: end });
     toast.success("Task saved");
   };
@@ -1312,344 +1312,273 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4" style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute left-1/2 top-10 -translate-x-1/2 w-[95vw] max-w-2xl rounded-2xl border p-4"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-semibold">{task ? "Edit task" : "New task"}</div>
-                <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-semibold">{task ? "Edit task" : "New task"}</div>
+          <button className="p-2 rounded-lg hover:bg-white/10" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-                  {/* Title */}
-          <div className="space-y-1">
-            <label className="text-xs text-slate-300">Title</label>
-            <div className="relative flex items-center gap-2">
-              <input
-                ref={titleRef}
-                value={data.title || ""}
-                onChange={(e) => setData({ ...data, title: e.target.value })}
-                className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                placeholder="What do you need to do?"
-              />
-              <EmojiPickerButton
-                inputRef={titleRef}
-                theme="dark"
-                className="rounded-lg border px-2 py-1"
-                style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
-              />
-            </div>
+        {/* Title */}
+        <div className="space-y-1">
+          <label className="text-xs text-slate-300">Title</label>
+          <div className="relative flex items-center gap-2">
+            <input
+              ref={titleRef}
+              value={data.title || ""}
+              onChange={(e) => setData({ ...data, title: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              placeholder="What do you need to do?"
+            />
+            <EmojiPickerButton
+              inputRef={titleRef}
+              theme="dark"
+              className="rounded-lg border px-2 py-1"
+              style={{ background: "var(--subsurface)", borderColor: "var(--border)", color: "var(--text)" }}
+            />
           </div>
- 
-            {/* Notes */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-300">Notes</label>
-              <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
-                <textarea
-                  value={data.notes || ""}
-                  onChange={(e) => setData({ ...data, notes: e.target.value })}
-                  placeholder="Details, links, etc."
-                  className="w-full min-h-[80px] rounded-xl px-3 py-2 bg-white/10 border border-white/10"
-                />
-              </motion.div>
-            </div>
-        
-            {/* Auto/Manual toggle + preview */}
-            <div className="flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
-              <span className="text-xs text-slate-300">Auto place by due date</span>
-              <button
-                onClick={() => setData(d => ({ ...d, statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto" }))}
-                className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
-              >
-                {isAuto ? "On" : "Off"}
-              </button>
-            </div>
-            {isAuto && (
-              <div className="text-[11px] -mt-1 text-slate-300/90">
-                Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
-              </div>
-            )}
+        </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-300">Status</label>
-                <select
-                  value={data.status}
-                  onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
-                  disabled={isAuto}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
-                >
-                  <option value="today">Today</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="backlog">Backlog</option>
-                  <option value="done">Completed</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-slate-300">Priority</label>
-                <select
-                  value={data.priority}
-                  onChange={(e) => setData({ ...data, priority: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                >
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-            </div>
+        {/* Notes */}
+        <div className="space-y-1 mt-3">
+          <label className="text-xs text-slate-300">Notes</label>
+          <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="mt-1">
+            <textarea
+              value={data.notes || ""}
+              onChange={(e) => setData({ ...data, notes: e.target.value })}
+              placeholder="Details, links, etc."
+              className="w-full min-h-[80px] rounded-xl px-3 py-2 bg-white/10 border border-white/10"
+            />
+          </motion.div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-300">Start date</label>
-                <input
-                  type="date"
-                  value={data.nextDue}
-                onChange={(e) => {
-                  const v = e.target.value; // YYYY-MM-DD
-                  setData((d) => {
-                    const wasMulti = isMultiDay(d);
-                    let end = d.endDate || v;
-                
-                    // never let end be before start
-                    if (end < v) end = v;
-                
-                    // keep single-day tasks single-day when start changes
-                    if (!wasMulti) end = v;
-                
-                    return { ...d, nextDue: v, endDate: end };
-                  });
-                }}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-300">Time</label>
-                <input
-                  type="time"
-                  value={data.time}
-                  onChange={(e) => setData({ ...data, time: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                />
-              </div>
-            </div>
-
-            {/* Multi-day toggle + end date */}
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={isMultiDay(data)}
-                onChange={(e) => {
-                  const on = e.target.checked;
-                  setData(d => {
-                    if (!on) return { ...d, endDate: d.nextDue }; // collapse
-                    const curEnd = d.endDate || d.nextDue;
-                    const needsBump = curEnd <= d.nextDue;
-                    const bumped = toISO(addDays(fromISO(d.nextDue), 1));
-                    return { ...d, endDate: needsBump ? bumped : curEnd };
-                  });
-                }}
-              />
-              Spans multiple days
-            </label>
-
-            {isMultiDay(data) && (
-              <div className="mt-2">
-                <label className="text-xs text-slate-300">End date</label>
-                <input
-                  type="date"
-                  value={data.endDate}
-                  min={data.nextDue}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setData(d => ({ ...d, endDate: v < d.nextDue ? d.nextDue : v }));
-                  }}
-                  className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="text-xs text-slate-300">Reminders</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {(data.remindBefore || []).map((m) => (
-                  <button key={m} onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
-                          className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10">
-                    {m} min ✕
-                  </button>
-                ))}
-                {[5, 10, 15, 30, 60, 120].map((m) => (
-                  <button key={m} onClick={() => setData((d) => ({ ...d, remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a,b)=>a-b) }))}
-                          className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                    +{m}m
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tag picker */}
-            <div>
-              <label className="text-xs text-slate-300">Tags</label>
-              <TagPicker
-                available={allTags}
-                value={data.tags || []}
-                onChange={(next) => setData((d) => ({ ...d, tags: next }))}
-              />
+        {/* Auto/Manual toggle + preview */}
+        <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
+          <span className="text-xs text-slate-300">Auto place by due date</span>
+          <button
+            onClick={() =>
+              setData((d) => ({
+                ...d,
+                statusMode: (d.statusMode || "auto") === "auto" ? "manual" : "auto",
+              }))
+            }
+            className="px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-xs"
+          >
+            {isAuto ? "On" : "Off"}
+          </button>
+        </div>
+        {isAuto && (
+          <div className="text-[11px] -mt-1 text-slate-300/90">
+            Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
           </div>
+        )}
 
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-slate-300">Recurring</label>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <select
-                  value={data.repeat}
-               onChange={(e) => {
+        {/* Status + priority */}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-300">Status</label>
+            <select
+              value={data.status}
+              onChange={(e) => setData({ ...data, status: e.target.value, statusMode: "manual" })}
+              disabled={isAuto}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 disabled:opacity-50"
+            >
+              <option value="today">Today</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="backlog">Backlog</option>
+              <option value="done">Completed</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-300">Priority</label>
+            <select
+              value={data.priority}
+              onChange={(e) => setData({ ...data, priority: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            >
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Date + time */}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-300">Start date</label>
+            <input
+              type="date"
+              value={data.nextDue}
+              onChange={(e) => {
                 const v = e.target.value;
                 setData((d) => {
                   const wasMulti = isMultiDay(d);
-              
+                  let end = d.endDate || v;
+                  if (end < v) end = v;
+                  if (!wasMulti) end = v;
+                  return { ...d, nextDue: v, endDate: end };
+                });
+              }}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-300">Time</label>
+            <input
+              type="time"
+              value={data.time}
+              onChange={(e) => setData({ ...data, time: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            />
+          </div>
+        </div>
+
+        {/* Multi-day toggle + end date */}
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={isMultiDay(data)}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setData((d) => {
+                if (!on) return { ...d, endDate: d.nextDue };
+                const curEnd = d.endDate || d.nextDue;
+                const needsBump = curEnd <= d.nextDue;
+                const bumped = toISO(addDays(fromISO(d.nextDue), 1));
+                return { ...d, endDate: needsBump ? bumped : curEnd };
+              });
+            }}
+          />
+          Spans multiple days
+        </label>
+
+        {isMultiDay(data) && (
+          <div className="mt-2">
+            <label className="text-xs text-slate-300">End date</label>
+            <input
+              type="date"
+              value={data.endDate}
+              min={data.nextDue}
+              onChange={(e) => {
+                const v = e.target.value;
+                setData((d) => ({ ...d, endDate: v < d.nextDue ? d.nextDue : v }));
+              }}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            />
+          </div>
+        )}
+
+        {/* Reminders */}
+        <div className="mt-3">
+          <label className="text-xs text-slate-300">Reminders</label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(data.remindBefore || []).map((m) => (
+              <button
+                key={m}
+                onClick={() => setData((d) => ({ ...d, remindBefore: d.remindBefore.filter((x) => x !== m) }))}
+                className="text-xs px-2 py-1 rounded-lg bg-black/20 border border-white/10"
+              >
+                {m} min ✕
+              </button>
+            ))}
+            {[5, 10, 15, 30, 60, 120].map((m) => (
+              <button
+                key={m}
+                onClick={() =>
+                  setData((d) => ({
+                    ...d,
+                    remindBefore: Array.from(new Set([...(d.remindBefore || []), m])).sort((a, b) => a - b),
+                  }))
+                }
+                className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15"
+              >
+                +{m}m
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div className="mt-3">
+          <label className="text-xs text-slate-300">Tags</label>
+          <TagPicker
+            available={allTags}
+            value={data.tags || []}
+            onChange={(next) => setData((d) => ({ ...d, tags: next }))}
+          />
+        </div>
+
+        {/* Recurring */}
+        <div className="mt-3 space-y-2">
+          <label className="text-xs text-slate-300">Recurring</label>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={data.repeat}
+              onChange={(e) => {
+                const v = e.target.value;
+                setData((d) => {
+                  const wasMulti = isMultiDay(d);
                   if (v === "weekly") {
                     const base = d.nextDue || todayISO();
                     const wd = d.repeatWeekday ?? fromISO(base).getDay();
                     const alignedISO = toISO(nextOnOrAfterWeekday(base, wd));
                     const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
-                    return {
-                      ...d,
-                      repeat: v,
-                      repeatWeekday: wd,
-                      nextDue: alignedISO,
-                      endDate: newEnd,
-                    };
+                    return { ...d, repeat: v, repeatWeekday: wd, nextDue: alignedISO, endDate: newEnd };
                   }
-              
                   if (v === "monthly-nth") {
                     const base = d.nextDue || todayISO();
                     const wd = d.repeatWeekday ?? fromISO(base).getDay();
                     const ord = d.repeatNth ?? 1;
                     const alignedISO = alignMonthlyNthISO(base, wd, ord);
                     const newEnd = wasMulti ? (d.endDate < alignedISO ? alignedISO : d.endDate) : alignedISO;
-                    return {
-                      ...d,
-                      repeat: v,
-                      repeatWeekday: wd,
-                      repeatNth: ord,
-                      nextDue: alignedISO,
-                      endDate: newEnd,
-                    };
+                    return { ...d, repeat: v, repeatWeekday: wd, repeatNth: ord, nextDue: alignedISO, endDate: newEnd };
                   }
-              
-                  // other modes don’t realign; keep single-day tasks single-day
                   const newEnd = wasMulti ? d.endDate : d.nextDue;
                   return { ...d, repeat: v, endDate: newEnd };
                 });
               }}
-                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                >
-                  <option value="none">None</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekdays">Weekdays</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="monthly-nth">Monthly (nth weekday)</option>
-                  <option value="custom">Custom (days)</option>
-                </select>
+              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+            >
+              <option value="none">None</option>
+              <option value="daily">Daily</option>
+              <option value="weekdays">Weekdays</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="monthly-nth">Monthly (nth weekday)</option>
+              <option value="custom">Custom (days)</option>
+            </select>
 
-                {/* Interval meaning depends on mode:
-                   daily -> days, weekly -> weeks, monthly/monthly-nth -> months, custom -> days */}
-                <input
-                  type="number"
-                  min={1}
-                  value={data.repeatIntervalDays}
-                  onChange={(e) =>
-                    setData({
-                      ...data,
-                      repeatIntervalDays: clamp(Number(e.target.value || 1), 1, 365),
-                    })
-                  }
-                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                  placeholder="Every…"
-                />
-              </div>
+            <input
+              type="number"
+              min={1}
+              value={data.repeatIntervalDays}
+              onChange={(e) => setData({ ...data, repeatIntervalDays: Math.max(1, Math.min(365, Number(e.target.value || 1))) })}
+              className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              placeholder="Every…"
+            />
+          </div>
 
-              {/* Weekly weekday picker */}
-              {data.repeat === "weekly" && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <select
-                    value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+          {/* Weekly weekday picker */}
+          {data.repeat === "weekly" && (
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
                 onChange={(e) => {
                   const wd = Number(e.target.value);
                   const iso = toISO(nextOnOrAfterWeekday(data.nextDue || todayISO(), wd));
-                  setData(d => {
+                  setData((d) => {
                     const wasMulti = isMultiDay(d);
                     const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
                     return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
                   });
                 }}
-                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                    title="Repeat on this weekday"
-                  >
-                    <option value={1}>Monday</option>
-                    <option value={2}>Tuesday</option>
-                    <option value={3}>Wednesday</option>
-                    <option value={4}>Thursday</option>
-                    <option value={5}>Friday</option>
-                    <option value={6}>Saturday</option>
-                    <option value={0}>Sunday</option>
-                  </select>
-
-                  <div className="self-center text-xs text-slate-400">
-                    Repeats every {data.repeatIntervalDays} week(s)
-                  </div>
-                </div>
-              )}
-
-              {/* Monthly (nth weekday) pickers */}
-              {data.repeat === "monthly-nth" && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <select
-                    value={data.repeatNth ?? 1}
-                    onChange={(e) => {
-                      const ord = Number(e.target.value);
-                      setData(d => {
-                        const base = d.nextDue || todayISO();
-                        const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
-                        const iso = alignMonthlyNthISO(base, wd, ord);
-                        const wasMulti = isMultiDay(d);
-                        const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
-                        return { ...d, repeatNth: ord, nextDue: iso, endDate: newEnd };
-                      });
-                    }}
-
-                    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                    title="Which occurrence in the month"
-                  >
-                    <option value={1}>1st</option>
-                    <option value={2}>2nd</option>
-                    <option value={3}>3rd</option>
-                    <option value={4}>4th</option>
-                    <option value={-1}>Last</option>
-                  </select>
-
-              {/* #4 — Monthly (nth) weekday picker */}
-              <select
-                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
-                onChange={(e) => {
-                  const wd = Number(e.target.value);
-                  setData(d => {
-                    const base = d.nextDue || todayISO();
-                    const ord  = Number(d.repeatNth ?? 1);
-                    const iso  = alignMonthlyNthISO(base, wd, ord);
-              
-                    // keep single-day tasks single-day; clamp multi-day end >= start
-                    const wasMulti = isMultiDay(d);
-                    const newEnd   = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
-              
-                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
-                  });
-                }}
                 className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
-                title="Pick a weekday"
               >
                 <option value={1}>Monday</option>
                 <option value={2}>Tuesday</option>
@@ -1659,63 +1588,101 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                 <option value={6}>Saturday</option>
                 <option value={0}>Sunday</option>
               </select>
-
-                </div>
-              )}
-
-              <p className="text-xs text-slate-400 mt-1">
-                Tip: “Every” controls units by mode — Daily=days, Weekly=weeks, Monthly/Monthly (nth)=months, Custom=days.
-                Complete the task to auto-advance the next due date (multi-day spans are preserved).
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-              <div className="text-xs text-slate-300 mb-2">Quick actions</div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => setData({ ...data, statusMode: "auto" })}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                  Use auto placement
-                </button>
-                <button onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                  Pin to Today
-                </button>
-                <button onClick={() => setData({ ...data, time: "09:00" })}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                  9:00 AM
-                </button>
-                <button onClick={() => setData({ ...data, remindBefore: [10] })}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
-                  Remind 10m
-                </button>
+              <div className="self-center text-xs text-slate-400">
+                Repeats every {data.repeatIntervalDays} week(s)
               </div>
-              {isAuto && (
-                <div className="text-[11px] text-slate-400 mt-2">
-                  With Auto on, changing Date/Time updates the target column preview above.
-                </div>
-              )}
             </div>
+          )}
 
-{/* Actions */}
-<div className="mt-6 flex items-center gap-2 justify-end">
-  <button
-    className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15"
-    onClick={onClose}
-  >
-    Cancel
-  </button>
-  <button
-    className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black"
-    onClick={save}
-  >
-    Save task
-  </button>
-</div>
-</motion.div>   {/* Panel end */}
-</div>          {/* Overlay end */}
-);
-}               // end of TaskModal
+          {/* Monthly (nth weekday) pickers */}
+          {data.repeat === "monthly-nth" && (
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={data.repeatNth ?? 1}
+                onChange={(e) => {
+                  const ord = Number(e.target.value);
+                  setData((d) => {
+                    const base = d.nextDue || todayISO();
+                    const wd = Number(d.repeatWeekday ?? fromISO(base).getDay());
+                    const iso = alignMonthlyNthISO(base, wd, ord);
+                    const wasMulti = isMultiDay(d);
+                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                    return { ...d, repeatNth: ord, nextDue: iso, endDate: newEnd };
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              >
+                <option value={1}>1st</option>
+                <option value={2}>2nd</option>
+                <option value={3}>3rd</option>
+                <option value={4}>4th</option>
+                <option value={-1}>Last</option>
+              </select>
 
+              <select
+                value={data.repeatWeekday ?? fromISO(data.nextDue || todayISO()).getDay()}
+                onChange={(e) => {
+                  const wd = Number(e.target.value);
+                  setData((d) => {
+                    const base = d.nextDue || todayISO();
+                    const ord = Number(d.repeatNth ?? 1);
+                    const iso = alignMonthlyNthISO(base, wd, ord);
+                    const wasMulti = isMultiDay(d);
+                    const newEnd = wasMulti ? (d.endDate < iso ? iso : d.endDate) : iso;
+                    return { ...d, repeatWeekday: wd, nextDue: iso, endDate: newEnd };
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+              >
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+                <option value={0}>Sunday</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Quick actions */}
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-slate-300 mb-2">Quick actions</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setData({ ...data, statusMode: "auto" })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+              Use auto placement
+            </button>
+            <button onClick={() => setData({ ...data, status: "today", statusMode: "manual" })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+              Pin to Today
+            </button>
+            <button onClick={() => setData({ ...data, time: "09:00" })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+              9:00 AM
+            </button>
+            <button onClick={() => setData({ ...data, remindBefore: [10] })}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+              Remind 10m
+            </button>
+          </div>
+          {isAuto && (
+            <div className="text-[11px] text-slate-400 mt-2">
+              With Auto on, changing Date/Time updates the target column preview above.
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-6 flex items-center gap-2 justify-end">
+          <button className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15" onClick={onClose}>Cancel</button>
+          <button className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black" onClick={save}>Save task</button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 // ---------- Tag Picker ----------
 function TagPicker({ available = [], value = [], onChange }) {
