@@ -81,6 +81,7 @@ const toISO = (d) => {
 };
 const todayISO = () => toISO(new Date());
 
+
 {/* ---- color helpers for tag-driven cards ---- */}
 function hexToRgb(hex) {
   let c = (hex || "").replace("#", "");
@@ -91,6 +92,13 @@ function hexToRgb(hex) {
   const b = parseInt(c.slice(4,6), 16);
   if ([r,g,b].some(Number.isNaN)) return null;
   return { r, g, b };
+  
+{/* ---- sorting helpers ---- */}
+function taskDueDate(t) {
+  if (!t.nextDue) return null;
+  const hhmm = (t.time && t.time.includes(":")) ? t.time : "23:59";
+  return parseTimeToDate(t.nextDue, hhmm);
+
 }
 function rgba(hex, a) {
   const rgb = hexToRgb(hex);
