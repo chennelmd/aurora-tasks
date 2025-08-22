@@ -1476,7 +1476,6 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
                 value={data.tags || []}
                 onChange={(next) => setData((d) => ({ ...d, tags: next }))}
               />
-            <motion.div>
           </div>
 
           <div className="space-y-3">
@@ -1752,6 +1751,32 @@ function TagPicker({ available = [], value = [], onChange }) {
 
         {/* Suggestions dropdown */}
         {(suggestions.length > 0 || (input && !normalized.includes(input))) && (
+          <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-white/10 bg-black/80 backdrop-blur p-2">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/10"
+                onClick={() => add(s)}
+              >
+                #{s}
+              </button>
+            ))}
+            {input && !normalized.includes(input) && (
+              <button
+                type="button"
+                className="mt-1 w-full text-left px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30"
+                onClick={() => add(input)}
+              >
+                Add “{input}”
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}      
           {/* Quick actions */}
           <div className="rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="text-xs text-slate-300 mb-2">Quick actions</div>
