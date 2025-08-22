@@ -1454,7 +1454,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </div>
         )}
 
-     // ------------------------- Recurring ---------------------------
+          {/*------------------------- Recurring ---------------------------*/}
         <div className="mt-3 space-y-2">
           <label className="text-xs font-medium text-slate-200">Recurring</label>
           <div className="grid grid-cols-2 gap-2">
@@ -1504,7 +1504,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             />
           </div>
 
-          // ---------------------- Weekly weekday picker -----------------------------
+          {/*---------------------- Weekly weekday picker ----------------------*/}
           {data.repeat === "weekly" && (
             <div className="grid grid-cols-2 gap-2">
               <select
@@ -1586,7 +1586,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           )}
         </div>
           
-        // -------------------------- Reminders -----------------------
+          {/*-------------------------- Reminders -----------------------*/}
         <div className="mt-3">
           <label className="text-xs font-medium text-slate-200">Reminders</label>
           <div className="mt-1 flex flex-wrap gap-2">
@@ -1616,7 +1616,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           </div>
         </div>
           
-        // ------------------------------------- Auto/Manual toggle + preview ----------------------------------
+          {/*------------------------------- Auto/Manual toggle + preview ----------------------------------*/}
         <div className="mt-3 flex items-center justify-between rounded-xl bg-black/20 border border-white/10 p-2">
           <span className="text-xs font-medium text-slate-200">Auto place by due date</span>
           <button
@@ -1636,7 +1636,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             Will appear in: <span className="font-medium">{capital(autoPreview)}</span>
           </div>
         )}
-        // ------------------------ Quick actions -----------------------------------
+          {/*------------------------ Quick actions -----------------------------------*/}
         <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
           <div className="text-xs font-medium text-slate-200 mb-2">Quick actions</div>
           <div className="flex flex-wrap gap-2">
@@ -1664,7 +1664,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           )}
         </div>
       </div>
-      // ----------------- Tags ---------------------
+        {/* ----------------- Tags ---------------------*/}
         <div className="mt-3">
           <label className="text-xs font-medium text-slate-200">Tags</label>
           <TagPicker
@@ -1674,7 +1674,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
           />
         </div> 
         
-      {/* Actions (sticky footer) */}
+      {/*----------------------- Actions (sticky footer) -----------------------*/}
       <div
         className="sticky bottom-0 -mx-4 px-4 pt-3 pb-3 flex items-center gap-2 justify-end border-t"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
@@ -1698,7 +1698,7 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
         );
         }  // end of TaskModal
 
-// ---------- Tag Picker (type-ahead) ----------
+{/*---------- Tag Picker (type-ahead) ----------*/}
 function TagPicker({ available = [], value = [], onChange, placeholder = "Add or select tag…" }) {
   const [input, setInput] = React.useState("");
 
