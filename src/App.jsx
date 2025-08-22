@@ -1699,10 +1699,6 @@ function TaskModal({ open, onClose, task, onSave, allTags }) {
             <div className="mt-6 flex items-center gap-2 justify-end">
               <button className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15" onClick={onClose}>Cancel</button>
               <button className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black" onClick={save}>Save task</button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
                 </div>
               );
             }
