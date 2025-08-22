@@ -92,6 +92,7 @@ function hexToRgb(hex) {
   const b = parseInt(c.slice(4,6), 16);
   if ([r,g,b].some(Number.isNaN)) return null;
   return { r, g, b };
+}
   
 {/* ---- sorting helpers ---- */}
 function taskDueDate(t) {
