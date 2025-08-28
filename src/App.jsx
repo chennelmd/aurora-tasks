@@ -1128,28 +1128,59 @@ function CardContent({ t, prefs, onEdit, onComplete, onDelete }) {
           <div className="flex-1">
             <div className="font-medium leading-tight">{t.title}</div>
             {t.notes && <div className="text-xs opacity-80 mt-1">{t.notes}</div>}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {t.tags?.map((tg) => (
-                <span key={tg} className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">#{tg}</span>
-              ))}
-              {t.repeat !== "none" && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                  <Repeat className="w-3 h-3" /> {formatRepeat(t)}
+           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* Tag chips — colored by tag */}
+            {(t.tags || []).map((tg) => {
+              const clr = prefs?.tagsPalette?.[tg]?.color;
+              const txt = prefs?.tagsPalette?.[tg]?.text || (clr ? getContrastText(clr) : "var(--text)");
+              const style = clr
+                ? { background: clr, color: txt, borderColor: darken(clr, 0.35) }
+                : { background: "var(--count-bg)", color: "var(--text)", borderColor: "var(--border)" };
+              return (
+                <span
+                  key={tg}
+                  className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border"
+                  style={style}
+                >
+                  #{tg}
                 </span>
-              )}
-              {t.time && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                  <Clock className="w-3 h-3" /> {t.time}
-                </span>
-              )}
-              {t.nextDue && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                  <CalendarIcon className="w-3 h-3" />
-                  {formatRangeShort(t.nextDue, t.endDate)}
-                </span>
-              )}
-            </div>
-
+              );
+            })}
+          
+            {/* Repeat pill — neutral/opaque */}
+            {t.repeat !== "none" && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border"
+                style={{ background: "var(--count-bg)", color: "var(--text)", borderColor: "var(--border)" }}
+              >
+                <Repeat className="w-3 h-3" />
+                {formatRepeat(t)}
+              </span>
+            )}
+          
+            {/* Time pill — neutral/opaque */}
+            {t.time && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border"
+                style={{ background: "var(--count-bg)", color: "var(--text)", borderColor: "var(--border)" }}
+              >
+                <Clock className="w-3 h-3" />
+                {t.time}
+              </span>
+            )}
+          
+            {/* Date / range pill — neutral/opaque */}
+            {t.nextDue && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border"
+                style={{ background: "var(--count-bg)", color: "var(--text)", borderColor: "var(--border)" }}
+              >
+                <CalendarIcon className="w-3 h-3" />
+                {formatRangeShort(t.nextDue, t.endDate)}
+              </span>
+            )}
+          </div>
+            
             {t.checklist?.length ? (
               <div className="mt-3 bg-black/10 rounded-xl p-2">
                 {t.checklist.map((c) => (
@@ -1192,6 +1223,55 @@ function PriorityGlyph({ level }) {
     </span>
   );
 }
+
+        function MetaChip({ children, icon }) {
+          return (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border"
+              style={{
+                background: "var(--subsurface)",
+                borderColor: "var(--border)",
+                color: "var(--text)",
+              }}
+              title={typeof children === "string" ? children : undefined}
+            >
+              {icon}
+              {children}
+            </span>
+          );
+        }
+        
+        function TagChip({ tag, prefs }) {
+          const hex = colorForTag(tag, prefs);           // user-assigned tag color
+          if (!hex) {
+            // Neutral tag (no color set yet)
+            return (
+              <span
+                className="text-[10px] px-2 py-0.5 rounded-full border"
+                style={{
+                  background: "var(--subsurface)",
+                  borderColor: "var(--border)",
+                  color: "var(--text)",
+                }}
+              >
+                #{tag}
+              </span>
+            );
+          }
+          // Colored tag chip
+          return (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full border"
+              style={{
+                background: hex,                       // opaque, derived from tag hue
+                color: getContrastText(hex),           // auto-contrast
+                borderColor: darken(hex, 0.25),        // subtle edge
+              }}
+            >
+              #{tag}
+            </span>
+          );
+        }
 
 function CalendarView({ calMonth, setCalMonth, daysArray, tasks, onOpen }) {
   const isCurrentMonth = (d) => d.getMonth() === calMonth.getMonth();
